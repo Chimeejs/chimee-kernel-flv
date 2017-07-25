@@ -1,198 +1,261 @@
-import { Log } from 'chimee-helper';
-import { CustEvent } from 'chimee-helper';
-import { isNumber } from 'chimee-helper';
-import Mp4 from './mp4/index';
-import Flv from './flv/index';
-import Hls from './hls/index';
+import {CustEvent} from 'chimee-helper';
+import MseContriller from './core/mse-controller';
+import Transmuxer from './core/transmuxer';
+import defaultConfig from './config';
+import {throttle, deepAssign, Log} from 'chimee-helper';
+/**
+ * flv 控制层
+ * @export
+ * @class mp4
+ */
+export default class Flv extends CustEvent {
+	constructor (videodom, config) {
+    super();
+    this.tag = 'FLV-player';
+    this.video = videodom;
+    this.box = 'flv';
+    this.config = defaultConfig;
+    this.timer = null;
+    deepAssign(this.config, config);
+    this.requestSetTime = false;
+    this.bindEvents();
+    this.attachMedia();
+  }
+  /**
+   * 内部控制能否设置currentTime
+   */
+  internalPropertyHandle () {
+    if(!Object.getOwnPropertyDescriptor) {
+      return;
+    }
+    const _this = this;
+    const time = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
 
-export default class Kernel extends CustEvent {
-	/**
-	 * 创建核心解码器
-	 * @param {any} wrap 父层容器
-	 * @param {any} option 整合参数
-	 * @\ kernel
-	 */
-	constructor (videoElement, config) {
-		super();
-		this.tag = 'kernel';
-		this.config = config;
-		this.video = videoElement;
-		this.videokernel = this.selectKernel();
-		this.bindEvents(this.videokernel, this.video);
-		this.timer = null;
-	}
+    Object.defineProperty(this.video, 'currentTime', {
+      get: ()=> {
+        return time.get.call(_this.video);
+      },
+      set: (t)=> {
+        if(!_this.currentTimeLock) {
+          throw new Error('can not set currentTime by youself');
+        } else {
+          return time.set.call(_this.video, t);
+        }
+      }
+    });
+  }
 
-	/**
-	 * 绑定事件
-	 * @memberof kernel
-	 */
-	bindEvents (videokernel, video) {
-		if (videokernel) {
-			videokernel.on('mediaInfo', (mediaInfo) => {
-				this.emit('mediaInfo', mediaInfo);
-			});
+  /**
+   * 绑定事件
+   */
+  bindEvents () {
+    if(this.video) {
+      this.video.addEventListener('canplay', () => {
+        if(this.config.type === 'live') {
+          this.video.play();
+        }
+        if(this.config.lockInternalProperty) {
+          this.internalPropertyHandle();
+        }
+      });
+    }
+  }
 
-			video.addEventListener('canplay', ()=> {
-				clearTimeout(this.timer);
-				this.timer = null;
-			});
+  /**
+   * 建立 mediaSource
+   */
+  attachMedia () {
+    this.mediaSource = new MseContriller(this.video, this.config);
+    this.mediaSource.on('source_open', ()=>{
+      this.transmuxer.loadSource();
+    });
+    this.mediaSource.on('bufferFull', ()=>{
+      this.pauseTransmuxer();
+    });
+    this.mediaSource.on('mediaInfo', (mediaInfo)=>{
+      this.emit('mediaInfo', mediaInfo);
+    });
+    this.mediaSource.on('updateend', this.onmseUpdateEnd.bind(this));
+  }
 
-		}
-	}
+  /**
+   * load
+   * @param {string} video url
+   */
+  load (src) {
+    if(src) {
+      this.config.src = src;
+    }
+    this.video.src = URL.createObjectURL(this.mediaSource.mediaSource);
+    this.video.addEventListener('seeking', throttle(this._seek.bind(this), 200, {leading: false}));
+    this.transmuxer = new Transmuxer(this.mediaSource, this.config);
+    this.transmuxer.on('mediaSegment', (handle)=> {
+      this.mediaSource.emit('mediaSegment', handle.data);
+    });
+    this.transmuxer.on('mediaSegmentInit', (handle)=> {
+      this.mediaSource.emit('mediaSegmentInit', handle.data);
+    });
+    this.transmuxer.on('error', (handle)=> {
+      this.emit('error', handle.data);
+    });
+  }
 
-	/**
-	 * 选择解码器
-	 * @memberof kernel
-	 */
-	selectKernel () {
-		const config = this.config;
+  /**
+   * seek in buffered
+   * @param {number} seek time
+   */
+  isTimeinBuffered (seconds) {
+    const buffered = this.video.buffered;
+    for (let i = 0; i < buffered.length; i++) {
+        const from = buffered.start(i);
+        const to = buffered.end(i);
+        if (seconds >= from && seconds < to) {
+            return true;
+        }
+    }
+    return false;
+  }
 
-		const box = config.box
-			? config.box
-			: config.src.indexOf('.flv') !== -1
-				? 'flv'
-				: config.src.indexOf('.m3u8') !== -1
-					? 'hls'
-					: 'mp4';
+  /**
+   * get current buffer end
+   */
+  getCurrentBufferEnd () {
+    const buffered = this.video.buffered;
+    const currentTime = this.video.currentTime;
+    let currentRangeEnd = 0;
 
-		if (box === 'mp4') {
-			return new Mp4(this.video, config);
-		} else if (box === 'flv') {
-			return new Flv(this.video, config);
-		} else if (box === 'hls') {
-			return new Hls(this.video, config);
-		} else {
-			Log.error(this.tag, 'not mactch any player, please check your config');
-			return null;
-		}
-	}
+    for (let i = 0; i < buffered.length; i++) {
+      const start = buffered.start(i);
+      const end = buffered.end(i);
+      if (start <= currentTime && currentTime < end) {
+        currentRangeEnd = end;
+        return currentRangeEnd;
+      }
+    }
+  }
+  /**
+   * _seek
+   * @param {number} seek time
+   */
+  _seek (seconds) {
+    this.currentTimeLock = true;
+    this.timer = null;
 
-	attachMedia () {
-		if (this.videokernel) {
-			this.videokernel.attachMedia();
-		} else {
-			Log.error(this.tag, 'video player is not already, must init player');
-		}
-	}
+    let currentTime = seconds && !isNaN(seconds) ? seconds : this.video.currentTime;
 
-	/**
-	 * 启动加载
-	 * @param {string} src 媒体资源地址
-	 * @memberof kernel
-	 */
-	load (src) {
-		this.config.src = src || this.config.src;
-		if (this.videokernel && this.config.src) {
-			this.videokernel.load(src);
-			if(!this.timer) {
-				this.timer = setTimeout(()=>{
-				this.timer = null;
-				this.pause();
-				this.refresh();
-				}, 1000);
-			}
-		} else {
-			Log.error(this.tag, 'video player is not already, must init player');
-		}
-	}
-	/**
-	 * 销毁kernel
-	 * @memberof kernel
-	 */
-	destroy () {
-		if (this.videokernel) {
-			this.videokernel.destroy();
-		} else {
-			Log.error(this.tag, 'player is not exit');
-		}
-	}
-	/**
-	 * to play
-	 * @memberof kernel
-	 */
-	play () {
-		if (this.videokernel) {
-			this.videokernel.play();
-		} else {
-			Log.error(this.tag, 'video player is not already, must init player');
-		}
-	}
-	/**
-	 * pause
-	 * @memberof kernel
-	 */
-	pause () {
-		if (this.videokernel && this.config.src) {
-			this.videokernel.pause();
-		} else {
-			Log.error(this.tag, 'video player is not already, must init player');
-		}
-	}
-	/**
-	 * get video currentTime
-	 * @memberof kernel
-	 */
-	get currentTime () {
-		if (this.videokernel) {
-			return this.video.currentTime;
-		}
-		return 0;
-	}
-	/**
-	 * seek to a point
-	 * @memberof kernel
-	 */
-	seek (seconds) {
-		if (!isNumber(seconds)) {
-			Log.error(this.tag, 'seek params must be a number');
-			return;
-		}
-		return this.videokernel.seek(seconds);
-	}
+    if(this.requestSetTime) {
+      this.requestSetTime = false;
+      this.currentTimeLock = false;
+      return;
+    }
+    // const buffered = this.video.buffered;
+    if(this.isTimeinBuffered(currentTime)) {
+      if(this.config.alwaysSeekKeyframe) {
+        const nearlestkeyframe = this.transmuxer.getNearlestKeyframe(Math.floor(currentTime * 1000));
+        if (nearlestkeyframe) {
+          this.requestSetTime = true;
+          this.video.currentTime = nearlestkeyframe.keyframetime / 1000;
+        }
+      }
+    } else {
+      this.transmuxer.pause();
+      const nearlestkeyframe = this.transmuxer.getNearlestKeyframe(Math.floor(currentTime * 1000));
+      currentTime = nearlestkeyframe.keyframetime / 1000;
+      this.transmuxer.seek(nearlestkeyframe);
+      this.mediaSource.seek(currentTime);
+      this.requestSetTime = true;
+      this.video.currentTime = currentTime;
+      window.clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.currentTimeLock = false;
+    return currentTime;
+  }
 
-	refresh () {
-		this.videokernel.refresh();
-	}
-	/**
-	 * get video duration
-	 * @memberof kernel
-	 */
-	get duration () {
-		return this.video.duration;
-	}
-	/**
-	 * get video volume
-	 * @memberof kernel
-	 */
-	get volume () {
-		return this.video.volume;
-	}
-	 /**
-	 * set video volume
-	 * @memberof kernel
-	 */
-	set volume (value) {
-		this.video.volume = value;
-	}
-	/**
-	 * get video muted
-	 * @memberof kernel
-	 */
-	get muted () {
-		return this.video.muted;
-	}
-	/**
-	 * set video muted
-	 * @memberof kernel
-	 */
-	set muted (muted) {
-		this.video.muted = muted;
-	}
-	 /**
-	 * get video buffer
-	 * @memberof kernel
-	 */
-	get buffered () {
-		return this.video.buffered;
-	}
+  /**
+   * mediaSource updateend
+   */
+  onmseUpdateEnd () {
+    if (this.config.isLive) {
+      return;
+    }
+    const currentBufferEnd = this.getCurrentBufferEnd();
+    const currentTime = this.video.currentTime;
+    if (currentBufferEnd >= currentTime + this.config.lazyLoadMaxDuration && this.timer === null) {
+        Log.verbose(this.tag, 'Maximum buffering duration exceeded, suspend transmuxing task');
+        this.pauseTransmuxer();
+    }
+  }
+
+  /**
+   * 心跳
+   */
+  heartbeat () {
+    const currentTime = this.video.currentTime;
+    const buffered = this.video.buffered;
+
+    let needResume = false;
+
+    for (let i = 0; i < buffered.length; i++) {
+      const from = buffered.start(i);
+      const to = buffered.end(i);
+      if (currentTime >= from && currentTime < to) {
+        if (currentTime >= to - this.config.lazyLoadRecoverDuration) {
+          needResume = true;
+        }
+        break;
+      }
+    }
+
+    if (needResume) {
+      window.clearInterval(this.timer);
+      this.timer = null;
+      Log.verbose(this.tag, 'Continue loading from paused position');
+      this.transmuxer.resume();
+    }
+  }
+
+  /**
+   * 暂停 transmuxer
+   */
+  pauseTransmuxer () {
+    this.transmuxer.pause();
+    if(!this.timer) {
+      this.timer = setInterval(this.heartbeat.bind(this), 1000);
+    }
+  }
+
+  resume () {
+
+  }
+
+  /**
+   * destroy
+   */
+  destroy () {
+    if(this.video) {
+      this.video.src = '';
+      this.video.removeAttribute('src');
+      this.transmuxer.destroy();
+      this.transmuxer = null;
+      this.mediaSource.destroy();
+      this.mediaSource = null;
+    }
+  }
+
+  seek (seconds) {
+    return this._seek(seconds);
+  }
+
+  play () {
+    return this.video.play();
+  }
+
+  pause () {
+    return this.video.pause();
+  }
+
+  refresh () {
+    this.transmuxer.refresh();
+  }
 }

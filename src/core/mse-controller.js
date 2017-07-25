@@ -196,6 +196,13 @@ export default class MSEController extends CustEvent {
   }
 
   /**
+   * seek
+   */
+  seek () {
+
+  }
+
+  /**
    * 销毁
    */
   destroy () {

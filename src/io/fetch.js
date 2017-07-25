@@ -28,6 +28,7 @@ export default class FetchLoader extends CustEvent {
 
 	constructor (src, config) {
 		super();
+		this.tag = 'fetch';
 		this.fetching = false;
 		this.config = config;
 		this.range = {
@@ -85,7 +86,7 @@ export default class FetchLoader extends CustEvent {
 	pump (reader, keyframePoint) { // ReadableStreamReader
     return reader.read().then((result) => {
         if (result.done) {
-					Log.verbose('play end');
+					Log.verbose(this.tag, 'play end');
         	// trigger complete
         } else {
         	if (this.requestAbort === true) {
