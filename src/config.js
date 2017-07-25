@@ -1,5 +1,5 @@
 export default {
-  type: 'vod',
+  isLive: false,
   autoPlay: false,
   box: 'flv',
   prestrain: 30,

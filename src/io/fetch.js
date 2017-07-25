@@ -52,7 +52,7 @@ export default class FetchLoader extends CustEvent {
 		const reqHeaders = new Headers();
 		const r = range || {from: 0, to: -1};
 
-		if(this.config.type === 'vod') {
+		if(!this.config.isLive) {
 			this.range.from = r.from;
 			this.range.to = r.to;
 			const headers = handleRange(r).headers;

@@ -51,7 +51,7 @@ export default class Flv extends CustEvent {
   bindEvents () {
     if(this.video) {
       this.video.addEventListener('canplay', () => {
-        if(this.config.type === 'live') {
+        if(this.config.isLive) {
           this.video.play();
         }
         if(this.config.lockInternalProperty) {

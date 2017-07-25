@@ -53,7 +53,7 @@ export default class MozChunkLoader extends CustEvent {
     xhr.onprogress = this.onProgress.bind(this);
     xhr.onload = this.onLoadEnd.bind(this);
     xhr.onerror = this.onXhrError.bind(this);
-    if(this.config.type === 'vod') {
+    if(!this.config.isLive) {
       const r = range || {from: 0, to: -1};
       this.range.from = r.from;
       this.range.to = r.to;
