@@ -66,6 +66,9 @@ export default class Transmuxer extends CustEvent {
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
       this.CPU.onError = this.onCPUError.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
+      this.CPU.on('error', function(handle) {
+        console.log(handle);
+      })
     }
     if(keyframePoint) {
       this.keyframePoint = true;

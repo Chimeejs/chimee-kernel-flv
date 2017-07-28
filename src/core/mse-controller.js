@@ -163,7 +163,7 @@ export default class MSEController extends CustEvent {
     }catch(e) {
       if(e.code === 22) {
         // chrome 大概会有350M
-        Log.verbose(this.TAG, 'MediaSource bufferFull');
+        Log.verbose(this.tag, 'MediaSource bufferFull');
         this.emit('bufferFull');
       }
     }
@@ -173,7 +173,7 @@ export default class MSEController extends CustEvent {
    * sourcebuffer 结束
    */
   onSourceEnded () {
-    Log.verbose(this.TAG, 'MediaSource onSourceEnded');
+    Log.verbose(this.tag, 'MediaSource onSourceEnded');
   }
 
   /**
@@ -224,7 +224,7 @@ export default class MSEController extends CustEvent {
           try {
               ms.endOfStream();
           } catch (error) {
-              Log.e(this.TAG, error.message);
+              Log.e(this.tag, error.message);
           }
       }
       ms.removeEventListener('sourceopen', this.e.onSourceOpen);

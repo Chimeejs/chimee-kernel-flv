@@ -75,7 +75,9 @@ export default class Flv extends CustEvent {
     this.mediaSource.on('mediaInfo', (mediaInfo)=>{
       this.emit('mediaInfo', mediaInfo);
     });
-    this.mediaSource.on('updateend', this.onmseUpdateEnd.bind(this));
+    this.mediaSource.on('updateend', ()=>{
+      this.onmseUpdateEnd();
+    });
   }
 
   /**
@@ -139,7 +141,6 @@ export default class Flv extends CustEvent {
    */
   _seek (seconds) {
     this.currentTimeLock = true;
-    this.timer = null;
 
     let currentTime = seconds && !isNaN(seconds) ? seconds : this.video.currentTime;
 
@@ -158,6 +159,7 @@ export default class Flv extends CustEvent {
         }
       }
     } else {
+      Log.verbose(this.tag, 'do seek');
       this.transmuxer.pause();
       const nearlestkeyframe = this.transmuxer.getNearlestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
@@ -176,15 +178,18 @@ export default class Flv extends CustEvent {
    * mediaSource updateend
    */
   onmseUpdateEnd () {
-    if (this.config.isLive) {
-      return;
-    }
-    const currentBufferEnd = this.getCurrentBufferEnd();
-    const currentTime = this.video.currentTime;
-    if (currentBufferEnd >= currentTime + this.config.lazyLoadMaxDuration && this.timer === null) {
+    setTimeout(()=>{
+      if (this.config.isLive) {
+        return;
+      }
+      const currentBufferEnd = this.getCurrentBufferEnd();
+      const currentTime = this.video.currentTime;
+      if (currentBufferEnd >= currentTime + this.config.lazyLoadMaxDuration && this.timer === null) {
         Log.verbose(this.tag, 'Maximum buffering duration exceeded, suspend transmuxing task');
         this.pauseTransmuxer();
-    }
+      }
+    },10)
+    
   }
 
   /**
