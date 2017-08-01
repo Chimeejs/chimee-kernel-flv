@@ -14,9 +14,8 @@ export default class Flv extends CustEvent {
     this.tag = 'FLV-player';
     this.video = videodom;
     this.box = 'flv';
-    this.config = defaultConfig;
     this.timer = null;
-    deepAssign(this.config, config);
+    this.config = deepAssign({}, config, defaultConfig);
     this.requestSetTime = false;
     this.bindEvents();
     this.attachMedia();

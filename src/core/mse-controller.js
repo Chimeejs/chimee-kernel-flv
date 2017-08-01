@@ -192,7 +192,7 @@ export default class MSEController extends CustEvent {
    * sourcebuffer 错误
    */
   onSourceBufferError (e) {
-    Log.Error(this.tag, `SourceBuffer Error: ${e}`);
+    Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 
   /**
