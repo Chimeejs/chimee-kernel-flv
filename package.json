@@ -32,7 +32,8 @@
   "homepage": "https://github.com/Chimeejs/chimee-kernel-flv#readme",
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "chimee-helper": "^0.1.10",
+    "chimee-helper": "^0.2.2",
+    "rollup-plugin-replace": "^1.1.1",
     "webworkify": "^1.4.0"
   },
   "devDependencies": {

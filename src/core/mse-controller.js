@@ -192,6 +192,7 @@ export default class MSEController extends CustEvent {
    * sourcebuffer 错误
    */
   onSourceBufferError (e) {
+    console.log(e);
     Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 

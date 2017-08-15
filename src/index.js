@@ -2,20 +2,40 @@ import {CustEvent} from 'chimee-helper';
 import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
-import {throttle, deepAssign, Log} from 'chimee-helper';
+import {throttle, deepAssign, Log, UAParser} from 'chimee-helper';
 /**
  * flv 控制层
  * @export
  * @class mp4
  */
 export default class Flv extends CustEvent {
+
+  static isSupport () {
+
+    const parser = new UAParser();
+    const info = parser.getBrowser()
+    if(info.name === 'Safari' && parseInt(info.major) < 10) {
+      return false;
+    }
+    
+    if(window.MediaSource && window.MediaSource.isTypeSupported('video/mp4; codecs="avc1.640020,mp4a.40.2"')) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  static get version() {
+    return __VERSION__;
+  }
+
 	constructor (videodom, config) {
     super();
     this.tag = 'FLV-player';
     this.video = videodom;
     this.box = 'flv';
     this.timer = null;
-    this.config = deepAssign({}, config, defaultConfig);
+    this.config = deepAssign({}, defaultConfig, config);
     this.requestSetTime = false;
     this.bindEvents();
     this.attachMedia();

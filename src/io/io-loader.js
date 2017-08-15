@@ -6,6 +6,7 @@
 
 import FetchLoader from './fetch';
 import RangeLoader from './xhr-range';
+import WebsocketLoader from './websocket';
 import MozChunkLoader from './xhr-moz-chunk';
 import {CustEvent} from 'chimee-helper';
 
@@ -21,7 +22,6 @@ export default class Ioloader extends CustEvent {
 		this.loader = null;
 		this.config = {};
 		Object.assign(this.config, config);
-		this.selectLoader();
 		this.bufferSize = 1024 * 1024 * 3; // initial size: 3MB
 		this.cacheBuffer = new ArrayBuffer(this.bufferSize);
 		this.cacheRemain = 0;
@@ -33,6 +33,8 @@ export default class Ioloader extends CustEvent {
 		this.totalReceive = 0;
 		this.seekPonit = 0;
 		this.timer = null;
+		this.webSocketURLReg = /wss?:\/\/(.+?)\//;
+		this.selectLoader();
 	}
 
 	/**
@@ -42,7 +44,9 @@ export default class Ioloader extends CustEvent {
 		const config = this.config;
 		const url = this.config.src;
 
-		if(FetchLoader.isSupport()) {
+		if(this.webSocketURLReg.test(url)) {
+			this.loader = new WebsocketLoader(url, config);
+		}else if(FetchLoader.isSupport()) {
 			this.loader = new FetchLoader(url, config);
 		} else if(MozChunkLoader.isSupport()) {
 			this.loader = new MozChunkLoader(url, config);
