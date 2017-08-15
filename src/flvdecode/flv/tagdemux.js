@@ -318,7 +318,7 @@ class tagDemux {
             meta.codecHeight = config.codec_size.height;
             meta.presentWidth = config.present_size.width;
             meta.presentHeight = config.present_size.height;
-
+            meta.config=config;
             meta.profile = config.profile_string;
             meta.level = config.level_string;
             meta.bitDepth = config.bit_depth;
@@ -357,7 +357,7 @@ class tagDemux {
             mi.sarNum = meta.sarRatio.width;
             mi.sarDen = meta.sarRatio.height;
             mi.videoCodec = codecString;
-
+            mi.meta=meta;
             if (mi.hasAudio) {
                 if (mi.audioCodec != null) {
                     mi.mimeType = 'video/x-flv; codecs="' + mi.videoCodec + ',' + mi.audioCodec + '"';
