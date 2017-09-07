@@ -4,7 +4,7 @@ import tagdemux from './flv/tagdemux';
 import mp4remux from './mp4/mp4remux';
 import mp4moof from './mp4/mp4moof';
 import { CustEvent } from 'chimee-helper';
-
+import Error from './utils/error'
 class flv2fmp4 extends CustEvent{
 
     /**
@@ -82,7 +82,9 @@ class flv2fmp4 extends CustEvent{
         } catch (error) {
             this.error(error);
         }
-
+        if(flvparse.arrTag[0].type!=18){
+            this.error(new Error('without metadata tag'));
+        }
         if (flvparse.arrTag.length > 0) {
             this.hasAudio = flvparse._hasAudio;
             this.hasVideo = flvparse._hasVideo;
