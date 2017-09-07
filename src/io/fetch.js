@@ -51,7 +51,6 @@ export default class FetchLoader extends CustEvent {
 		this.requestAbort = false;
 		const reqHeaders = new Headers();
 		const r = range || {from: 0, to: -1};
-
 		if(!this.config.isLive) {
 			this.range.from = r.from;
 			this.range.to = r.to;

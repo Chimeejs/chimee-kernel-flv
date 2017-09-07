@@ -67,7 +67,7 @@ export default class Transmuxer extends CustEvent {
       this.CPU.onError = this.onCPUError.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
       this.CPU.on('error', function(handle) {
-        console.log(handle);
+        this.emit('f2m', handle.data);
       })
     }
     if(keyframePoint) {
