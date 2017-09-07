@@ -410,7 +410,12 @@ class tagDemux {
 
         this._onTrackMetadata('video', meta);
     }
-
+    set hasAudio(s){
+        this._mediaInfo.hasAudio = this._hasAudio=s;
+    }
+    set hasVideo(s){
+        this._mediaInfo.hasVideo = this._hasVideo=s;
+    }
     timestampBase(i) {
         this._timestampBase = i;
     }

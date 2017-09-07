@@ -86,8 +86,8 @@ class flv2fmp4 extends CustEvent{
             this.error(new Error('without metadata tag'));
         }
         if (flvparse.arrTag.length > 0) {
-            this.hasAudio = flvparse._hasAudio;
-            this.hasVideo = flvparse._hasVideo;
+            tagdemux.hasAudio=this.hasAudio = flvparse._hasAudio;
+            tagdemux.hasVideo=this.hasVideo = flvparse._hasVideo;
             if (this._tempBaseTime != 0 && this._tempBaseTime == flvparse.arrTag[0].getTime()) {
                 tagdemux._timestampBase = 0;
             }
