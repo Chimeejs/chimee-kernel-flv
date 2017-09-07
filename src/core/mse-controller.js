@@ -24,7 +24,7 @@ export default class MSEController extends CustEvent {
     this.removeRangesList = [];
     this.removeBucketing = false;
     this.mimeCodec = 'video/mp4; codecs="avc1.640020,mp4a.40.2"';
-    this.init();
+    //this.init();
   }
 
   /**
