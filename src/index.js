@@ -85,14 +85,12 @@ export default class Flv extends CustEvent {
    */
   attachMedia () {
     this.mediaSource = new MseContriller(this.video, this.config);
+
     this.mediaSource.on('source_open', ()=>{
-      this.transmuxer.loadSource();
+      
     });
     this.mediaSource.on('bufferFull', ()=>{
       this.pauseTransmuxer();
-    });
-    this.mediaSource.on('mediaInfo', (mediaInfo)=>{
-      this.emit('mediaInfo', mediaInfo);
     });
     this.mediaSource.on('updateend', ()=>{
       this.onmseUpdateEnd();
@@ -107,18 +105,30 @@ export default class Flv extends CustEvent {
     if(src) {
       this.config.src = src;
     }
-    this.video.src = URL.createObjectURL(this.mediaSource.mediaSource);
-    this.video.addEventListener('seeking', throttle(this._seek.bind(this), 200, {leading: false}));
+    
     this.transmuxer = new Transmuxer(this.mediaSource, this.config);
+    
+
     this.transmuxer.on('mediaSegment', (handle)=> {
       this.mediaSource.emit('mediaSegment', handle.data);
     });
     this.transmuxer.on('mediaSegmentInit', (handle)=> {
       this.mediaSource.emit('mediaSegmentInit', handle.data);
     });
+
     this.transmuxer.on('error', (handle)=> {
       this.emit('error', handle.data);
     });
+    this.transmuxer.on('mediaInfo', (mediaInfo)=>{
+      if(!this.mediaInfo) {
+        this.mediaInfo = mediaInfo;
+        this.emit('mediaInfo', mediaInfo);
+        this.mediaSource.init(mediaInfo);
+        this.video.src = URL.createObjectURL(this.mediaSource.mediaSource);
+        this.video.addEventListener('seeking', throttle(this._seek.bind(this), 200, {leading: false}));
+      }
+    });
+    this.transmuxer.loadSource();
   }
 
   /**
