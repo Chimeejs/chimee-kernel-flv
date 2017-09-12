@@ -114,7 +114,6 @@ export default class Transmuxer extends CustEvent {
    *  @param {object} 视频头信息
    */
   onMediaInfo (mediaInfo) {
-    console.log(mediaInfo);
     this.mediaInfo = mediaInfo;
     this.emit('mediaInfo', mediaInfo);
   }

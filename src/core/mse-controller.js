@@ -23,35 +23,43 @@ export default class MSEController extends CustEvent {
     this.queue = [];
     this.removeRangesList = [];
     this.removeBucketing = false;
-    this.mimeCodec = 'video/mp4; codecs="avc1.640020,mp4a.40.2"';
+    this.timer = null;
+    // this.mimeCodec = 'video/mp4; codecs="avc1.640020,mp4a.40.2"';
     //this.init();
   }
 
   /**
    * 初始化 控制层
    */
-  init () {
+  init (mediaInfo) {
     if (this.mediaSource) {
       Log.Error(this.tag, 'MediaSource has been attached to an HTMLMediaElement!');
       throw new Error('MediaSource has been attached to an HTMLMediaElement!');
     }
+
+    this.mimeCodec = `video/mp4; codecs="${mediaInfo.data.videoCodec},${mediaInfo.data.audioCodec}"`;
+
     const ms = this.mediaSource = new window.MediaSource();
     ms.addEventListener('sourceopen', this.e.onSourceOpen);
     ms.addEventListener('sourceended', this.e.onSourceEnded);
     ms.addEventListener('sourceclose', this.e.onSourceClose);
+    // this.sourceBuffer.updating = true;
+    this.sourceBufferEvent();
   }
 
   /**
    * mediaSource open
    */
   onSourceOpen () {
+
     Log.verbose(this.tag, 'MediaSource onSourceOpen');
     this.mediaSource.removeEventListener('sourceopen', this.e.onSourceOpen);
-    window.sou = this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeCodec);
+    
+    this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeCodec);
     this.sourceBuffer.addEventListener('error', this.e.onSourceBufferError);
-    this.sourceBuffer.addEventListener('abort', () => console.log('sourceBuffer: abort'));
+    this.sourceBuffer.addEventListener('abort', () => Log.verbose('sourceBuffer: abort'));
     this.sourceBuffer.addEventListener('updateend', () => {
-      if(this.queue.length >= 1) {
+      if(this.queue.length > 0) {
         if(!this.sourceBuffer.updating) {
           if(this.needCleanupSourceBuffer()) {
             this.doCleanupSourceBuffer();
@@ -63,8 +71,21 @@ export default class MSEController extends CustEvent {
       }
       this.emit('updateend');
     });
+    this.doUpdate();
     this.emit('source_open');
-    this.sourceBufferEvent();
+    // this.sourceBuffer.updating = false;
+  }
+
+  doUpdate() {
+    clearTimeout(this.timer);
+    if(this.queue.length > 0) {
+      const data = this.queue.shift();
+      this.appendBuffer(data);
+    } else {
+      this.timer = setTimeout(()=>{
+        this.doUpdate();
+      }, 100)
+    }
   }
 
   /**
@@ -73,11 +94,7 @@ export default class MSEController extends CustEvent {
   sourceBufferEvent () {
     this.on('mediaSegment', (handler)=> {
       const data = handler.data;
-      // if(this.needCleanupSourceBuffer()) {
-      //   this.doCleanupSourceBuffer();
-      // }
-      if (this.sourceBuffer.updating || this.queue.length > 0) {
-        // console.log(new Uint8Array(data));
+      if(!this.sourceBuffer || (this.sourceBuffer.updating || this.queue.length > 0)) {
         this.queue.push(data);
       } else {
         this.appendBuffer(data);
@@ -86,7 +103,7 @@ export default class MSEController extends CustEvent {
 
     this.on('mediaSegmentInit', (handler)=> {
       const data = handler.data;
-      if (this.sourceBuffer.updating || this.queue.length > 0) {
+      if (!this.sourceBuffer || (this.sourceBuffer.updating || this.queue.length > 0)) {
         this.queue.push(data);
       } else {
        this.appendBuffer(data);
@@ -192,7 +209,7 @@ export default class MSEController extends CustEvent {
    * sourcebuffer 错误
    */
   onSourceBufferError (e) {
-    console.log(e);
+    Log.info(e);
     Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 
