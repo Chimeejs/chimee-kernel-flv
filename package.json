@@ -1,6 +1,6 @@
 {
   "name": "chimee-kernel-flv",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "kernel-flv of chimee",
   "main": "lib/index.js",
   "module": "lib/index.mjs",
