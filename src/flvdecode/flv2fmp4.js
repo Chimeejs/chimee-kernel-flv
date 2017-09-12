@@ -203,7 +203,7 @@ class flv2fmp4 extends CustEvent{
             this.metaSuccRun = true;
             return;
         }
-
+        if(mi)return;
         this.ftyp_moov = mp4remux.generateInitSegment(this.metas);
         if (this.onInitSegment && this.loadmetadata == false) {
 
