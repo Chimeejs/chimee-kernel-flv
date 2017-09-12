@@ -181,7 +181,7 @@ class flv2fmp4 extends CustEvent{
                 }
                 break;
         }
-        if (this.hasVideo && this.hasAudio && this.metaSuccRun && this.metas.length > 1) {
+        if (this.hasVideo && this.hasAudio  && this.metas.length > 1) {
             this.metaSucc();
         }
     }
@@ -196,7 +196,7 @@ class flv2fmp4 extends CustEvent{
      */
     metaSucc(mi) {
         if (this.onMediaInfo) {
-            this.onMediaInfo(mi, { hasAudio: this.hasAudio, hasVideo: this.hasVideo });
+            this.onMediaInfo(mi||tagdemux._mediaInfo, { hasAudio: this.hasAudio, hasVideo: this.hasVideo });
         }
         // 获取ftyp和moov
         if (this.metas.length == 0) {
