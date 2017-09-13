@@ -36,6 +36,8 @@ export default class MSEController extends CustEvent {
       Log.Error(this.tag, 'MediaSource has been attached to an HTMLMediaElement!');
       throw new Error('MediaSource has been attached to an HTMLMediaElement!');
     }
+    mediaInfo.data.videoCodec || (mediaInfo.data.videoCodec = 'avc1.640020');
+    mediaInfo.data.audioCodec || (mediaInfo.data.audioCodec = 'mp4a.40.2');
 
     this.mimeCodec = `video/mp4; codecs="${mediaInfo.data.videoCodec},${mediaInfo.data.audioCodec}"`;
 
