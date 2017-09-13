@@ -59,7 +59,7 @@ export default class MSEController extends CustEvent {
     
     this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeCodec);
     this.sourceBuffer.addEventListener('error', this.e.onSourceBufferError);
-    this.sourceBuffer.addEventListener('abort', () => Log.verbose('sourceBuffer: abort'));
+    this.sourceBuffer.addEventListener('abort', () => Log.verbose(this.tag, 'sourceBuffer: abort'));
     this.sourceBuffer.addEventListener('updateend', () => {
       if(this.queue.length > 0) {
         if(!this.sourceBuffer.updating) {
