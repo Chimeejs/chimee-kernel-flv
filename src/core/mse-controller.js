@@ -20,12 +20,27 @@ export default class MSEController extends CustEvent {
       onSourceClose: this.onSourceClose.bind(this),
       onSourceBufferError: this.onSourceBufferError.bind(this)
     };
-    this.queue = [];
-    this.removeRangesList = [];
+    this.removeRangesList = {
+      video: [],
+      audio: []
+    };
     this.removeBucketing = false;
-    this.timer = null;
-    // this.mimeCodec = 'video/mp4; codecs="avc1.640020,mp4a.40.2"';
-    //this.init();
+    this.timer = {
+      video: null,
+      audio: null
+    };
+    this.queue = {
+      video: [],
+      audio: []
+    }
+    this.sourceBuffer = {
+      video: null,
+      audio: null
+    }
+    this.mimeCodec = {
+      video: null,
+      audio: null
+    }
   }
 
   /**
@@ -39,7 +54,8 @@ export default class MSEController extends CustEvent {
     mediaInfo.data.videoCodec || (mediaInfo.data.videoCodec = 'avc1.640020');
     mediaInfo.data.audioCodec || (mediaInfo.data.audioCodec = 'mp4a.40.2');
 
-    this.mimeCodec = `video/mp4; codecs="${mediaInfo.data.videoCodec},${mediaInfo.data.audioCodec}"`;
+    this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}`;
+    this.mimeCodec['audio'] = `video/mp4; codecs="${mediaInfo.data.audioCodec}`;
 
     const ms = this.mediaSource = new window.MediaSource();
     ms.addEventListener('sourceopen', this.e.onSourceOpen);
@@ -53,39 +69,44 @@ export default class MSEController extends CustEvent {
    * mediaSource open
    */
   onSourceOpen () {
-
     Log.verbose(this.tag, 'MediaSource onSourceOpen');
     this.mediaSource.removeEventListener('sourceopen', this.e.onSourceOpen);
-    
-    this.sourceBuffer = this.mediaSource.addSourceBuffer(this.mimeCodec);
-    this.sourceBuffer.addEventListener('error', this.e.onSourceBufferError);
-    this.sourceBuffer.addEventListener('abort', () => Log.verbose(this.tag, 'sourceBuffer: abort'));
-    this.sourceBuffer.addEventListener('updateend', () => {
-      if(this.queue.length > 0) {
-        if(!this.sourceBuffer.updating) {
-          if(this.needCleanupSourceBuffer()) {
-            this.doCleanupSourceBuffer();
-          } else {
-            const data = this.queue.shift();
-            this.appendBuffer(data);
-          }
-        }
-      }
-      this.emit('updateend');
-    });
-    this.doUpdate();
+    this.addSourceBuffer('video');
+    this.addSourceBuffer('audio');
     this.emit('source_open');
     // this.sourceBuffer.updating = false;
   }
 
-  doUpdate() {
-    clearTimeout(this.timer);
-    if(this.queue.length > 0) {
-      const data = this.queue.shift();
-      this.appendBuffer(data);
+  addSourceBuffer(type) {
+    this.sourceBuffer[type] = this.mediaSource.addSourceBuffer(this.mimeCodec[type]);
+    Log.verbose(this.tag, 'add sourcebuffer '+ type);
+    const sb = this.sourceBuffer[type];
+    sb.addEventListener('error', this.e.onSourceBufferError);
+    sb.addEventListener('abort', () => Log.verbose(this.tag, 'sourceBuffer: abort'));
+    sb.addEventListener('updateend', () => {
+      //if(this.queue[type].length > 0) {
+        if(!sb.updating) {
+          if(this.needCleanupSourceBuffer(type)) {
+            this.doCleanupSourceBuffer(type);
+          } else {
+            const data = this.queue[type].shift();
+            this.appendBuffer(data, type);
+          }
+        }
+      //}
+      this.emit('updateend');
+    });
+    this.doUpdate(type);
+  }
+
+  doUpdate(type) {
+    clearTimeout(this.timer[type]);
+    if(this.queue[type].length > 0) {
+      const data = this.queue[type].shift();
+      this.appendBuffer(data, type);
     } else {
-      this.timer = setTimeout(()=>{
-        this.doUpdate();
+      this.timer[type] = setTimeout(()=>{
+        this.doUpdate(type);
       }, 100)
     }
   }
@@ -96,19 +117,22 @@ export default class MSEController extends CustEvent {
   sourceBufferEvent () {
     this.on('mediaSegment', (handler)=> {
       const data = handler.data;
-      if(!this.sourceBuffer || (this.sourceBuffer.updating || this.queue.length > 0)) {
-        this.queue.push(data);
+      const type = data.type;
+
+      if(!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
+        this.queue[type].push(data.data);
       } else {
-        this.appendBuffer(data);
+        this.appendBuffer(data.data, type);
       }
     });
 
     this.on('mediaSegmentInit', (handler)=> {
       const data = handler.data;
-      if (!this.sourceBuffer || (this.sourceBuffer.updating || this.queue.length > 0)) {
-        this.queue.push(data);
+      const type = data.type;
+      if (!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
+        this.queue[type].push(data.data);
       } else {
-       this.appendBuffer(data);
+       this.appendBuffer(data.data, type);
       }
     });
   }
@@ -116,15 +140,22 @@ export default class MSEController extends CustEvent {
   /**
    * 是否需要清除sourcebuffer 里的buffer
    */
-  needCleanupSourceBuffer () {
+  needCleanupSourceBuffer (type) {
     const currentTime = this.video.currentTime;
 
-    const sb = this.sourceBuffer;
+    const sb = this.sourceBuffer[type];
     const buffered = sb.buffered;
 
     if (buffered.length >= 1) {
         if (currentTime - buffered.start(0) >= this.config.autoCleanupMaxBackwardDuration) {
             return true;
+        }
+        for (let i = 0; i < buffered.length; i++) {
+          const start = buffered.start(i);
+          const end = buffered.end(i);
+          if( !(currentTime+3 > start &&  currentTime < end+3)) {
+            return true;
+          }
         }
     }
     return false;
@@ -133,42 +164,48 @@ export default class MSEController extends CustEvent {
   /**
    * 清除buffer
    */
-  doCleanupSourceBuffer () {
+  doCleanupSourceBuffer (type) {
     Log.verbose(this.tag, 'docleanBuffer');
     const currentTime = this.video.currentTime;
-    const sb = this.sourceBuffer;
+    const sb = this.sourceBuffer[type];
     const buffered = sb.buffered;
     let doRemove = false;
     for (let i = 0; i < buffered.length; i++) {
       const start = buffered.start(i);
       const end = buffered.end(i);
-
-      if (start <= currentTime && currentTime < end + 3) {
-        if (currentTime - start >= this.config.autoCleanupMaxBackwardDuration) {
+      if(start < currentTime && currentTime < end) {
+        if (start <= currentTime && currentTime < end + 3) {
+          if (currentTime - start >= this.config.autoCleanupMaxBackwardDuration) {
+            doRemove = true;
+            const removeEnd = currentTime - this.config.autoCleanupMinBackwardDuration;
+            this.removeRangesList[type].push({start, end: removeEnd});
+          }
+        } else if (end < currentTime) {
           doRemove = true;
-          const removeEnd = currentTime - this.config.autoCleanupMinBackwardDuration;
-          this.removeRangesList.push({start, end: removeEnd});
+          this.removeRangesList[type].push({start, end});
         }
-      } else if (end < currentTime) {
+      } else {
         doRemove = true;
-        this.removeRangesList.push({start, end});
+        this.removeRangesList[type].push({start, end});
       }
+
+      
     }
-    if(doRemove && !this.sourceBuffer.updating) {
-      this.cleanRangesList();
+    if(doRemove && !this.sourceBuffer[type].updating) {
+      this.cleanRangesList(type);
     }
   }
 
   /**
    * 清除bufferlist
    */
-  cleanRangesList () {
-    if (this.sourceBuffer.updating) {
+  cleanRangesList (type) {
+    if (this.sourceBuffer[type].updating) {
       return;
     }
-    const sb = this.sourceBuffer;
-    while (this.removeRangesList.length && !sb.updating) {
-      const ranges = this.removeRangesList.shift();
+    const sb = this.sourceBuffer[type];
+    while (this.removeRangesList[type].length && !sb.updating) {
+      const ranges = this.removeRangesList[type].shift();
       sb.remove(ranges.start, ranges.end);
     }
   }
@@ -176,9 +213,9 @@ export default class MSEController extends CustEvent {
   /**
    * 往sourcebuffer里添加数据
    */
-  appendBuffer (data) {
+  appendBuffer (data, type) {
     try {
-      this.sourceBuffer.appendBuffer(data);
+      this.sourceBuffer[type].appendBuffer(data.buffer);
     }catch(e) {
       if(e.code === 22) {
         // chrome 大概会有350M
@@ -211,7 +248,8 @@ export default class MSEController extends CustEvent {
    * sourcebuffer 错误
    */
   onSourceBufferError (e) {
-    Log.info(e);
+    console.log(e);
+    // Log.info(e);
     Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 

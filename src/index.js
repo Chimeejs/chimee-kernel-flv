@@ -108,10 +108,11 @@ export default class Flv extends CustEvent {
     
     this.transmuxer = new Transmuxer(this.mediaSource, this.config);
     
-
     this.transmuxer.on('mediaSegment', (handle)=> {
       this.mediaSource.emit('mediaSegment', handle.data);
+      this.onmseUpdateEnd();
     });
+
     this.transmuxer.on('mediaSegmentInit', (handle)=> {
       this.mediaSource.emit('mediaSegmentInit', handle.data);
     });
@@ -268,6 +269,7 @@ export default class Flv extends CustEvent {
    */
   destroy () {
     if(this.video) {
+      URL.revokeObjectURL(this.video.src);
       this.video.src = '';
       this.video.removeAttribute('src');
       this.transmuxer.destroy();

@@ -86,6 +86,7 @@ export default class FetchLoader extends CustEvent {
     return reader.read().then((result) => {
         if (result.done) {
 					Log.verbose(this.tag, 'play end');
+					this.emit('end');
         	// trigger complete
         } else {
         	if (this.requestAbort === true) {

@@ -16,7 +16,7 @@
 	// flv点播 http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv
 	var player = document.querySelector('#player');
 	var Kernel = new chimeeKernelFlv(player,{
-	   src: 'http://36.110.217.22/xy0-flv.live.huajiao.com/live_huajiao_v2/_LC_XY0_non_5902900415052020421362507_OX.flv',
+	   src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv',
 	   box: 'flv',
 	   isLive: true,
 	   preset: {
@@ -25,5 +25,8 @@
 	});
 
 	Kernel.load();
+	Kernel.on('mediaInfo', function(mediaInfo) {
+		console.log(mediaInfo);
+	})
 </script>
 </html>

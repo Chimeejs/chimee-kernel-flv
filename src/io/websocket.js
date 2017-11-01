@@ -1,4 +1,3 @@
-import handleRange from './handleRange';
 import {CustEvent} from 'chimee-helper';
 import {Log} from 'chimee-helper';
 
@@ -14,11 +13,7 @@ export default class WebSocketLoader extends CustEvent {
 
     constructor(src, config) {
         super();
-        this.tag = 'WebSocketLoader';
-        this.range = {
-            from: 0,
-            to: 500000
-        };
+        this.tag = 'WebSocket';
         this.src = src;
         this._ws = null;
         this._requestAbort = false;
@@ -29,31 +24,33 @@ export default class WebSocketLoader extends CustEvent {
         if (this._ws) {
             this.abort();
         }
-        super.destroy();
     }
 
     open(range, keyframePoint) {
         try {
             const ws = this._ws = new self.WebSocket(this.src);
             ws.binaryType = 'arraybuffer';
-            ws.onopen = this._onWebSocketOpen.bind(this);
-            ws.onclose = this._onWebSocketClose.bind(this);
-            ws.onmessage = this._onWebSocketMessage.bind(this);
-            ws.onerror = this._onWebSocketError.bind(this);
+            ws.onopen = this.onWebSocketOpen.bind(this);
+            ws.onclose = this.onWebSocketClose.bind(this);
+            ws.onmessage = this.onWebSocketMessage.bind(this);
+            ws.onerror = this.onWebSocketError.bind(this);
         } catch (e) {
-            const info = {code: e.code, msg: e.message};
+            const info = {
+                code: e.code, 
+                msg: e.message
+            };
 
             if (this._onError) {
-                this._onError(LoaderErrors.EXCEPTION, info);
+                this._onError('Exception', info);
             } else {
-                throw new RuntimeException(info.msg);
+                throw new Error(info.msg);
             }
         }
     }
 
     abort() {
         const ws = this._ws;
-        if (ws && (ws.readyState === 0 || ws.readyState === 1)) {  // CONNECTING || OPEN
+        if (ws && (ws.readyState === 0 || ws.readyState === 1)) {
             this._requestAbort = true;
             ws.close();
         }
@@ -61,60 +58,54 @@ export default class WebSocketLoader extends CustEvent {
         this._ws = null;
     }
 
-    _onWebSocketOpen(e) {
-    }
-
-    _onWebSocketClose(e) {
+    onWebSocketClose(e) {
         if (this._requestAbort === true) {
             this._requestAbort = false;
             return;
         }
-
-        if (this._onComplete) {
-            this._onComplete(0, this._receivedLength - 1);
-        }
+        this.emit('end');
     }
 
-    _onWebSocketMessage(e) {
+    onWebSocketMessage(e) {
         if (e.data instanceof ArrayBuffer) {
-            this._dispatchArrayBuffer(e.data);
+            this.dispatchArrayBuffer(e.data);
         } else if (e.data instanceof Blob) {
             let reader = new FileReader();
             reader.onload = () => {
-                this._dispatchArrayBuffer(reader.result);
+                this.dispatchArrayBuffer(reader.result);
             };
             reader.readAsArrayBuffer(e.data);
         } else {
             let info = {code: -1, msg: 'Unsupported WebSocket message type: ' + e.data.constructor.name};
 
             if (this._onError) {
-                this._onError(LoaderErrors.EXCEPTION, info);
+                this._onError('Exception', info);
             } else {
-                throw new RuntimeException(info.msg);
+                throw new Error(info.msg);
             }
         }
     }
 
-    _dispatchArrayBuffer(arraybuffer) {
+    dispatchArrayBuffer(arraybuffer) {
         let chunk = arraybuffer;
-        let byteStart = this._receivedLength;
-        this._receivedLength += chunk.byteLength;
+        let byteStart = this.receivedLength;
+        this.receivedLength += chunk.byteLength;
 
         if (this.arrivalDataCallback) {
-            this.arrivalDataCallback(chunk, byteStart, this._receivedLength);
+            this.arrivalDataCallback(chunk, byteStart, this.receivedLength);
         }
     }
 
-    _onWebSocketError(e) {
+    onWebSocketError(e) {
         let info = {
             code: e.code,
             msg: e.message
         };
 
         if (this._onError) {
-            this._onError(LoaderErrors.EXCEPTION, info);
+            this._onError('Exception', info);
         } else {
-            throw new RuntimeException(info.msg);
+            throw new Error(info.msg);
         }
     }
 

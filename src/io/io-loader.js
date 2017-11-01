@@ -35,6 +35,10 @@ export default class Ioloader extends CustEvent {
 		this.timer = null;
 		this.webSocketURLReg = /wss?:\/\/(.+?)\//;
 		this.selectLoader();
+		this.loader.on('end', ()=> {
+			const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
+			this.arrivalDataCallback(buffer, this.stashByteStart);
+		})
 	}
 
 	/**
@@ -79,9 +83,7 @@ export default class Ioloader extends CustEvent {
         this.cacheRemain += chunk.byteLength;
       } else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
         let stashArray = new Uint8Array(this.cacheBuffer, 0, this.bufferSize);
-        if (this.cacheRemain > 0) { // There're stash datas in buffer
-          // dispatch the whole stashBuffer, and stash remain data
-          // then append chunk to stashBuffer (stash)
+        if (this.cacheRemain > 0) { 
           const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
           let consumed = 0;
           if(this.seekPonit) {
@@ -90,7 +92,7 @@ export default class Ioloader extends CustEvent {
           } else {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart);
           }
-          // const consumed = this.arrivalDataCallback(buffer, this.stashByteStart, keyframePoint);
+
           if (consumed < buffer.byteLength) {
             if (consumed > 0) {
               const remainArray = new Uint8Array(buffer, consumed);
@@ -108,9 +110,7 @@ export default class Ioloader extends CustEvent {
           }
           stashArray.set(new Uint8Array(chunk), this.cacheRemain);
           this.cacheRemain += chunk.byteLength;
-        } else { // stash buffer empty, but chunkSize > stashSize (oh, holy shit)
-          // dispatch chunk directly and stash remain data
-          // const consumed = this.arrivalDataCallback(chunk, byteStart, keyframePoint);
+        } else { 
           let consumed = 0;
           if(this.seekPonit) {
           	consumed = this.arrivalDataCallback(chunk, byteStart, this.seekPonit);

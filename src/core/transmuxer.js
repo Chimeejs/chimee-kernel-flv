@@ -2,9 +2,8 @@ import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper';
 import {Log} from 'chimee-helper';
 import work from 'webworkify';
-// const F2M = require('chimee-flv2fmp4');
-import F2M from '../flvdecode/flv2fmp4';
-
+//import F2M from 'chimee-flv2fmp4';
+import F2M from '../cpu/flv2fmp4';
 /**
  * Transmuxer 控制层
  * @class Transmuxer
@@ -66,7 +65,7 @@ export default class Transmuxer extends CustEvent {
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
       this.CPU.onError = this.onCPUError.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
-      this.CPU.on('error', function(handle) {
+      this.CPU.on('error', (handle)=> {
         this.emit('f2m', handle.data);
       })
     }
@@ -122,16 +121,29 @@ export default class Transmuxer extends CustEvent {
    * remuxer init segment arrival
    *  @param {arraybuffer} 视频数据
    */
-  onRemuxerInitSegmentArrival (data) {
-    this.emit('mediaSegmentInit', data);
+  onRemuxerInitSegmentArrival (video, audio) {
+
+    this.emit('mediaSegmentInit', {
+      type: 'video',
+      data: video
+    });
+    if(audio) {
+      this.emit('mediaSegmentInit', {
+        type: 'audio',
+        data: audio
+      });
+    }
   }
 
   /**
    * remuxer  segment arrival
    *  @param {arraybuffer} 视频数据
    */
-  onRemuxerMediaSegmentArrival (data) {
-    this.emit('mediaSegment', data);
+  onRemuxerMediaSegmentArrival (type, data) {
+    this.emit('mediaSegment', {
+      type: type,
+      data: data
+    });
   }
 
   /**
@@ -176,7 +188,7 @@ export default class Transmuxer extends CustEvent {
     if(!this.isSeekable()) {
       this.emit('ERROR', '这个flv视频不支持seek');
       return false;
-    }
+    } 
     this.loader = new IoLoader(this.config);
     this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
     this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
