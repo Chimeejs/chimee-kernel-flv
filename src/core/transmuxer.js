@@ -2,10 +2,9 @@ import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper';
 import {Log} from 'chimee-helper';
 import work from 'webworkify';
-//import F2M from 'chimee-flv2fmp4';
 import F2M from '../cpu/flv2fmp4';
 /**
- * Transmuxer 控制层
+ * Transmuxer controller
  * @class Transmuxer
  * @param {mediaSource} mediaSource
  * @param {object} config
@@ -34,7 +33,6 @@ export default class Transmuxer extends CustEvent {
 	loadSource () {
     if(this.config.webWorker) {
       this.w.postMessage({cmd: 'loadSource'});
-      // this.loader.arrivalDataCallback = this.arrivalDataCallbackWorker.bind(this);
     } else {
       this.loader = new IoLoader(this.config);
       this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
@@ -53,9 +51,9 @@ export default class Transmuxer extends CustEvent {
   // }
    /**
    * loader data callback
-   *  @param {arraybuffer} 数据
-   *  @param {number} 开始的起点
-   *  @param {keyframePoint} 关键帧点
+   * @param {arraybuffer} data
+   * @param {number} bytestart
+   * @param {keyframePoint} keyframe
    */
   arrivalDataCallback (data, byteStart, keyframePoint) {
   	let consumed = 0;
@@ -67,7 +65,7 @@ export default class Transmuxer extends CustEvent {
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
       this.CPU.on('error', (handle)=> {
         this.emit('f2m', handle.data);
-      })
+      });
     }
     if(keyframePoint) {
       this.keyframePoint = true;
@@ -79,7 +77,7 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * loader data callback
-   *  @param {arraybuffer} 数据
+   * @param {arraybuffer} data
    */
   parseCallback (data) {
     switch(data.cmd) {
@@ -100,8 +98,8 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * Demux error
-   *  @param {string} 类型
-   *  @param {string} 信息
+   *  @param {string} type
+   *  @param {string} info
    */
   onDemuxError (type, info) {
   	Log.error(this.tag, `DemuxError: type = ${type}, info = ${info}`);
@@ -110,7 +108,7 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * Demux mediaInfo
-   *  @param {object} 视频头信息
+   *  @param {object} video message info
    */
   onMediaInfo (mediaInfo) {
     this.mediaInfo = mediaInfo;
@@ -119,7 +117,7 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * remuxer init segment arrival
-   *  @param {arraybuffer} 视频数据
+   * @param {arraybuffer} video data
    */
   onRemuxerInitSegmentArrival (video, audio) {
 
@@ -137,18 +135,16 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * remuxer  segment arrival
-   *  @param {arraybuffer} 视频数据
+   * @param {String} tag type
+   * @param {arraybuffer} video data
    */
   onRemuxerMediaSegmentArrival (type, data) {
-    this.emit('mediaSegment', {
-      type: type,
-      data: data
-    });
+    this.emit('mediaSegment', {type, data});
   }
 
   /**
    * cpu error
-   *  @param {object} 错误信息
+   * @param {object} error message
    */
   onCPUError (handle) {
     this.emit('ERROR', handle.data);
@@ -188,7 +184,7 @@ export default class Transmuxer extends CustEvent {
     if(!this.isSeekable()) {
       this.emit('ERROR', '这个flv视频不支持seek');
       return false;
-    } 
+    }
     this.loader = new IoLoader(this.config);
     this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
     this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
@@ -215,6 +211,7 @@ export default class Transmuxer extends CustEvent {
 
   /**
    * get nearlest keyframe
+   * @param {Number} video time
    */
   getNearlestKeyframe (times) {
     if(this.mediaInfo && this.mediaInfo.keyframesIndex) {

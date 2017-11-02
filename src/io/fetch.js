@@ -1,5 +1,5 @@
 /**
-* fetch firfox 直播 点播
+* fetch vod live
 * author songguangyu
 * emil 522963130@qq.com
 */
@@ -25,7 +25,12 @@ export default class FetchLoader extends CustEvent {
 			return false;
 		}
 	}
-
+	/**
+	 * Fetch controller
+	 * @class Fetch
+	 * @param {String} video src
+	 * @param {Object} config
+	 */
 	constructor (src, config) {
 		super();
 		this.tag = 'fetch';
@@ -45,7 +50,8 @@ export default class FetchLoader extends CustEvent {
 	}
 	/**
    * if don't need range don't set
-   * @param  {object} range.from range.to
+   * @param {Object} range.from range.to
+	 * @param {Number} range.from range.to
    */
 	open (range, keyframePoint) {
 		this.requestAbort = false;
