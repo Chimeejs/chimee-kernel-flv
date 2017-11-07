@@ -64,7 +64,7 @@ export default class Transmuxer extends CustEvent {
       this.CPU.onError = this.onCPUError.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
       this.CPU.on('error', (handle)=> {
-        this.emit('f2m', handle.data);
+        this.emit('error', handle.data);
       });
     }
     if(keyframePoint) {
@@ -120,7 +120,6 @@ export default class Transmuxer extends CustEvent {
    * @param {arraybuffer} video data
    */
   onRemuxerInitSegmentArrival (video, audio) {
-
     this.emit('mediaSegmentInit', {
       type: 'video',
       data: video
@@ -182,7 +181,7 @@ export default class Transmuxer extends CustEvent {
    */
   seek (keyframe) {
     if(!this.isSeekable()) {
-      this.emit('ERROR', '这个flv视频不支持seek');
+      this.emit('error', '这个flv视频不支持seek');
       return false;
     }
     this.loader = new IoLoader(this.config);
@@ -210,7 +209,7 @@ export default class Transmuxer extends CustEvent {
   }
 
   /**
-   * get nearlest keyframe
+   * get nearlest keyframe binary search
    * @param {Number} video time
    */
   getNearlestKeyframe (times) {

@@ -86,9 +86,10 @@ class flv2fmp4 {
             this.error(error);
         }
         if(flvparse.arrTag.length==0)return offset;
-        if(flvparse.arrTag[0].tagType!=18){
-            if(this.error)this.error(new Error('without metadata tag'));
-        }
+        // seek 之后 肯定不是script tag 这个判断写的有问题
+        // if(flvparse.arrTag[0].tagType!=18){
+        //     if(this.error)this.error(new Error('without metadata tag'));
+        // }
         if (flvparse.arrTag.length > 0) {
             tagdemux.hasAudio=this.hasAudio = flvparse._hasAudio;
             tagdemux.hasVideo=this.hasVideo = flvparse._hasVideo;

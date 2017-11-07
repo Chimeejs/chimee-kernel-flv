@@ -127,7 +127,9 @@ export default class Flv extends CustEvent {
 
     this.transmuxer.on('error', (handle)=> {
       this.emit('error', handle.data);
+      this.transmuxer.pause();
     });
+
     this.transmuxer.on('mediaInfo', (mediaInfo)=>{
       if(!this.mediaInfo) {
         this.mediaInfo = mediaInfo;

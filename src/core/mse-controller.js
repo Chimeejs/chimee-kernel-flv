@@ -29,7 +29,7 @@ export default class MSEController extends CustEvent {
       video: null,
       audio: null
     };
-    this.queue = {
+    window.queue = this.queue = {
       video: [],
       audio: []
     };
@@ -90,23 +90,18 @@ export default class MSEController extends CustEvent {
     sb.addEventListener('error', this.e.onSourceBufferError);
     sb.addEventListener('abort', () => Log.verbose(this.tag, 'sourceBuffer: abort'));
     sb.addEventListener('updateend', () => {
-      // if(this.hasRemoveList()) {
-      //   if(this.removeRangesList.video.length) {
-      //     console.log('clean video');
-      //     this.cleanRangesList('video');
-      //   }
-      //   if(this.removeRangesList.audio.length) {
-      //     console.log('clean audio');
-      //     this.cleanRangesList('audio');
-      //   }
-      // } else 
-      if(this.hasQueueList()) {
+      if(this.hasRemoveList()) {
+        if(this.removeRangesList.video.length) {
+          this.cleanRangesList('video');
+        }
+        if(this.removeRangesList.audio.length) {
+          this.cleanRangesList('audio');
+        }
+      } else if(this.hasQueueList()) {
         this.doUpdate();
       }
       this.emit('updateend');
-      // this.doUpdate(type);
     });
-    
   }
 
   hasRemoveList () {
@@ -119,11 +114,10 @@ export default class MSEController extends CustEvent {
 
    /**
    * addSourceBuffer
-   * @param {String} tag type
    */
-  doUpdate (type) {
+  doUpdate () {
     for(const type in this.queue) {
-      if(this.queue[type].length > 0) {
+      if(this.queue[type].length > 0 && !this.sourceBuffer[type].updating) {
         const data = this.queue[type].shift();
         this.appendBuffer(data, type);
       }
@@ -168,7 +162,6 @@ export default class MSEController extends CustEvent {
     // const sb = this.sourceBuffer[type];
     // const buffered = sb.buffered;
     const buffered = this.video.buffered;
-    
     if (buffered.length >= 1) {
       if (currentTime - buffered.start(0) >= this.config.autoCleanupMaxBackwardDuration) {
         return true;
@@ -182,7 +175,7 @@ export default class MSEController extends CustEvent {
    * @param {String} tag type
    */
   doCleanupSourceBuffer (type) {
-    Log.verbose(this.tag, 'docleanBuffer');
+    // Log.verbose(this.tag, 'docleanBuffer');
     const currentTime = this.video.currentTime;
     const sb = this.sourceBuffer[type];
     const buffered = sb.buffered;
@@ -227,11 +220,13 @@ export default class MSEController extends CustEvent {
     try {
       this.sourceBuffer[type].appendBuffer(data.buffer);
     } catch (e) {
-      this.emit('error');
+      this.queue[type].unshift(data);
       if(e.code === 22) {
         // chrome can cache about 350M
         Log.verbose(this.tag, 'MediaSource bufferFull');
         this.emit('bufferFull');
+      } else {
+       this.emit('error', e.message);
       }
     }
   }
@@ -268,23 +263,21 @@ export default class MSEController extends CustEvent {
    * seek
    */
   seek () {
-    for (const type in this.sourceBuffers) {
-      const sb = this.sourceBuffers[type];
+    for (const type in this.sourceBuffer) {
+      const sb = this.sourceBuffer[type];
       try {
         sb.abort();
       } catch (e) {
           Log.error(this.tag, e.message);
       }
       this.queue[type] = [];
-
       for (let i = 0; i < sb.buffered.length; i++) {
         const start = sb.buffered.start(i);
         const end = sb.buffered.end(i);
         this.removeRangesList[type].push({start, end});
       }
-
       if (!sb.updating) {
-        this.cleanRangesList();
+        this.cleanRangesList(type);
       }
     }
   }

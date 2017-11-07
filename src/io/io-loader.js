@@ -171,26 +171,27 @@ export default class Ioloader extends CustEvent {
 	/**
 	* 打开连接
 	*/
-	open (StartBytes) {
-		if(StartBytes === undefined) {
-			StartBytes = 0;
+	open (startBytes) {
+		if(startBytes === undefined) {
+			startBytes = 0;
 		}
-		this.loader.open({from: StartBytes, to: -1});
+		this.loader.open({from: startBytes, to: -1});
 	}
 
 	/**
 	* 重新播放
 	*/
 	resume () {
-    this.paused = false;
-    const bytes = this.totalReceive;
-    this.open(bytes);
+		this.paused = false;
+		const bytes = this.totalReceive;
+		this.open(bytes);
   }
 
   /**
 	* seek
 	*/
   seek (bytes, dropCache, keyframePoint) {
+		this.totalReceive = bytes;
   	this.loader.open({from: bytes, to: -1}, keyframePoint);
   }
 
@@ -199,6 +200,6 @@ export default class Ioloader extends CustEvent {
 	*/
 	destroy () {
 		this.pause();
-		this.cacheBuffer = null;
+		// this.cacheBuffer = null;
 	}
 }

@@ -1,11 +1,11 @@
 /**
-* fetch vod live
+* fetch firfox 直播 点播
 * author songguangyu
 * emil 522963130@qq.com
 */
 import handleRange from './handleRange';
-import {CustEvent} from 'chimee-helper';
-import {Log} from 'chimee-helper';
+import {CustEvent} from 'chimee-helper-events';
+import Log from 'chimee-helper-log';
 
 /**
  * FetchLoader
@@ -19,18 +19,13 @@ export default class FetchLoader extends CustEvent {
    * broswer is support moz-chunk
    */
 	static isSupport () {
-		if(window.fetch && window.ReadableStream) {
+		if(self.fetch && self.ReadableStream) {
 			return true;
 		} else {
 			return false;
 		}
 	}
-	/**
-	 * Fetch controller
-	 * @class Fetch
-	 * @param {String} video src
-	 * @param {Object} config
-	 */
+
 	constructor (src, config) {
 		super();
 		this.tag = 'fetch';
@@ -50,8 +45,7 @@ export default class FetchLoader extends CustEvent {
 	}
 	/**
    * if don't need range don't set
-   * @param {Object} range.from range.to
-	 * @param {Number} range.from range.to
+   * @param  {object} range.from range.to
    */
 	open (range, keyframePoint) {
 		this.requestAbort = false;
@@ -68,9 +62,16 @@ export default class FetchLoader extends CustEvent {
     if(keyframePoint) {
     	this.bytesStart = 0;
     }
-		this.req = new Request(this.src, {headers: reqHeaders});
+    this.bytesStart = range.from;
+		const params = {
+      method: 'GET',
+      headers: reqHeaders,
+      mode: 'cors',
+      cache: 'default',
+      referrerPolicy: 'no-referrer-when-downgrade'
+    };
 
-		fetch(this.req).then((res)=>{
+		fetch(this.src, params).then((res)=>{
 			if(res.ok) {
 				const reader = res.body.getReader();
 				return this.pump(reader, keyframePoint);
@@ -91,21 +92,21 @@ export default class FetchLoader extends CustEvent {
 	pump (reader, keyframePoint) { // ReadableStreamReader
     return reader.read().then((result) => {
         if (result.done) {
-					Log.verbose(this.tag, 'play end');
-					this.emit('end');
-        	// trigger complete
+					Log.verbose(this.tag, 'load end');
         } else {
         	if (this.requestAbort === true) {
+        		this.requestAbort = false;
         		return reader.cancel();
         	}
         	const chunk = result.value.buffer;
-
         	if(this.arrivalDataCallback) {
         		this.arrivalDataCallback(chunk, this.bytesStart, keyframePoint);
         		this.bytesStart += chunk.byteLength;
         	}
         	return this.pump(reader);
         }
+      }).catch((e) => {
+      	this.emit('error', e.message);
       });
 	}
 }
