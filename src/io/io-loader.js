@@ -8,7 +8,7 @@ import FetchLoader from './fetch';
 import RangeLoader from './xhr-range';
 import WebsocketLoader from './websocket';
 import MozChunkLoader from './xhr-moz-chunk';
-import {CustEvent} from 'chimee-helper';
+import {CustEvent} from 'chimee-helper-events';
 
 /**
  * Ioloader 处理io的调用器 缓存多余数据

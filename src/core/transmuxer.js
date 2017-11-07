@@ -1,7 +1,7 @@
 import IoLoader from '../io/io-loader';
-import {CustEvent} from 'chimee-helper';
-import {Log} from 'chimee-helper';
-import work from 'webworkify';
+import {CustEvent} from 'chimee-helper-events';
+import Log from 'chimee-helper-log';
+import work from 'webworkify-webpack';
 import F2M from '../cpu/flv2fmp4';
 /**
  * Transmuxer controller
@@ -20,11 +20,11 @@ export default class Transmuxer extends CustEvent {
     this.w = null;
     Object.assign(this.config, config);
     if(this.config.webWorker) {
-      this.w = work('./transmuxer-worker');
-      this.w.postMessage({cmd: 'init'});
+      this.w = work(require.resolve('./transmuxer-worker'));
       this.w.addEventListener('message', (e) => {
-        this.parseCallback(e.data);
+        this.parseCallback.call(this, e.data);
       });
+      this.w.postMessage({cmd: 'init', data: config});
     }
 	}
    /**
@@ -56,7 +56,6 @@ export default class Transmuxer extends CustEvent {
    * @param {keyframePoint} keyframe
    */
   arrivalDataCallback (data, byteStart, keyframePoint) {
-  	let consumed = 0;
     if(!this.CPU) {
       this.CPU = new F2M();
       this.CPU.onInitSegment = this.onRemuxerInitSegmentArrival.bind(this);
@@ -68,10 +67,10 @@ export default class Transmuxer extends CustEvent {
       });
     }
     if(keyframePoint) {
-      this.keyframePoint = true;
+      // this.keyframePoint = true;
       this.CPU.seek(keyframePoint);
     }
-    consumed = this.CPU.setflv(data);
+    const consumed = this.CPU.setflv(data);
     return consumed;
   }
 
@@ -81,9 +80,6 @@ export default class Transmuxer extends CustEvent {
    */
   parseCallback (data) {
     switch(data.cmd) {
-      case 'pipeCallback':
-      data.source;
-      break;
       case 'mediaSegmentInit':
       this.emit('mediaSegmentInit', data.source);
       break;
@@ -91,7 +87,8 @@ export default class Transmuxer extends CustEvent {
       this.emit('mediaSegment', data.source);
       break;
       case 'mediainfo':
-      this.emit('mediainfo', data.source);
+      this.mediaInfo = data.source;
+      this.emit('mediaInfo', data.source);
       break;
     }
   }
@@ -160,14 +157,22 @@ export default class Transmuxer extends CustEvent {
    * stop loader
    */
   pause () {
-    this.loader.pause();
+    if(this.config.webWorker) {
+      this.w.postMessage({cmd: 'pause'});
+    } else {
+      this.loader.pause();
+    }
   }
 
   /**
    * resume loader
    */
   resume () {
-     this.loader.resume();
+    if(this.config.webWorker) {
+      this.w.postMessage({cmd: 'resume'});
+    } else {
+      this.loader.resume();
+    }
   }
    /**
    * flv can seek
@@ -184,28 +189,40 @@ export default class Transmuxer extends CustEvent {
       this.emit('error', '这个flv视频不支持seek');
       return false;
     }
-    this.loader = new IoLoader(this.config);
-    this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
-    this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
+    if(this.config.webWorker) {
+      this.w.postMessage({cmd: 'seek', keyframe});
+    } else {
+      this.loader = new IoLoader(this.config);
+      this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
+      this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
+    }
   }
 
   /**
    * refresh
    */
   refresh () {
-    this.pause();
-    this.loader = new IoLoader(this.config);
-    this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
-    this.loader.open();
+    if(this.config.webWorker) {
+      this.w.postMessage({cmd: 'refresh'});
+    } else {
+      this.pause();
+      this.loader = new IoLoader(this.config);
+      this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
+      this.loader.open();
+    }
   }
 
   /**
    * destroy
    */
   destroy () {
-    this.loader.destroy();
-    this.loader = null;
-    this.CPU = null;
+    if(this.config.webWorker) {
+      this.w.postMessage({cmd: 'destroy'});
+    } else {
+      this.loader.destroy();
+      this.loader = null;
+      this.CPU = null;
+    }
   }
 
   /**

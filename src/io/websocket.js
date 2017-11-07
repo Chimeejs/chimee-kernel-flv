@@ -1,5 +1,4 @@
-import {CustEvent} from 'chimee-helper';
-import {Log} from 'chimee-helper';
+import {CustEvent} from 'chimee-helper-events';
 
 export default class WebSocketLoader extends CustEvent {
 

@@ -1,41 +1,70 @@
-const F2M = require('chimee-flv2fmp4');
+import F2M from '../cpu/flv2fmp4';
 import IoLoader from '../io/io-loader';
 
 export default function (ctx) {
   let CPU = null;
   let loader = null;
-
+  let config = {};
   ctx.addEventListener('message', function (e) {
     switch (e.data.cmd) {
       case 'init':
-        CPU = new F2M();
-        CPU.onInitSegment = onRemuxerInitSegmentArrival.bind(this);
-        CPU.onMediaSegment = onRemuxerMediaSegmentArrival.bind(this);
-        CPU.onError = onCPUError.bind(this);
-        CPU.onMediaInfo = onMediaInfo.bind(this);
-        CPU.seekCallBack = seekCallBack.bind(this);
+        config = e.data.data;
       break;
       case 'loadSource':
-        loader = new IoLoader(this.config);
+        loader = new IoLoader(config);
         loader.arrivalDataCallback = arrivalDataCallbackWorker;
         loader.open();
       break;
-      case 'pipe':
-      const consumed = CPU.setflv(e.data.source);
-      self.postMessage({cmd: 'pipeCallback', source: consumed});
+      case 'pause':
+      loader.pause();
       break;
       case 'seek':
-      CPU.seek(e.data.source);
+      seek(e.data.keyframe);
+      break;
+      case 'resume':
+      loader.resume();
+      break;
+      case 'refresh':
+      refresh();
+      break;
+      case 'destroy':
+      destroy();
       break;
     };
   });
 
-  function onRemuxerInitSegmentArrival (type, initSegment) {
-    self.postMessage({cmd: 'mediaSegmentInit', source: initSegment});
+  function init () {
+    CPU = new F2M();
+    CPU.onInitSegment = onRemuxerInitSegmentArrival;
+    CPU.onMediaSegment = onRemuxerMediaSegmentArrival;
+    CPU.onError = onCPUError;
+    CPU.onMediaInfo = onMediaInfo;
+    CPU.on('error', (handle)=> {
+      self.postMessage({cmd: 'error', source: handle.data});
+    });
   }
 
-  function onRemuxerMediaSegmentArrival (type, initSegment) {
-    self.postMessage({cmd: 'mediaSegment', source: initSegment});
+  function onRemuxerInitSegmentArrival (video, audio) {
+    self.postMessage({
+      cmd: 'mediaSegmentInit',
+      source: {
+        type: 'video',
+        data: video
+      }
+    });
+    if(audio) {
+      self.postMessage({
+        cmd: 'mediaSegmentInit',
+        source: {
+          type: 'audio',
+          data: audio
+        }
+      });
+    }
+  }
+
+  function onRemuxerMediaSegmentArrival (type, data) {
+    self.postMessage({cmd: 'mediaSegment', source: {type, data}});
   }
 
   function onCPUError (error) {
@@ -46,13 +75,34 @@ export default function (ctx) {
     self.postMessage({cmd: 'mediainfo', source: mediainfo});
   }
 
-  function seekCallBack () {
+  function seek (keyframe) {
+    loader.pause();
+    loader = new IoLoader(config);
+    loader.arrivalDataCallback = arrivalDataCallbackWorker;
+    loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
   }
+
+  function refresh () {
+    loader.pause();
+    loader = new IoLoader(config);
+    loader.arrivalDataCallback = arrivalDataCallbackWorker;
+    loader.open();
+  }
+
+  function destroy () {
+    loader.destroy();
+    loader = null;
+    CPU = null;
+  }
+
   function arrivalDataCallbackWorker (data, byteStart, keyframePoint) {
-    if(keyframePoint) {
-      this.w.postMessage({cmd: 'seek', source: data});
+    if(!CPU) {
+      init();
     }
-    this.w.postMessage({cmd: 'pipe', source: data});
-    return;
+    if(keyframePoint) {
+      CPU.seek(keyframePoint);
+    }
+    const consumed = CPU.setflv(data);
+    return consumed;
   }
 }

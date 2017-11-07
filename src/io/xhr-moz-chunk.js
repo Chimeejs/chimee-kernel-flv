@@ -5,7 +5,7 @@
 */
 // import Log from 'helper/log';
 import handleRange from './handleRange';
-import {CustEvent} from 'chimee-helper';
+import {CustEvent} from 'chimee-helper-events';
 
 /**
  * MozChunkLoader

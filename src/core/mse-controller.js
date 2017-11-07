@@ -1,5 +1,5 @@
-import {CustEvent} from 'chimee-helper';
-import {Log} from 'chimee-helper';
+import {CustEvent} from 'chimee-helper-events';
+import Log from 'chimee-helper-log';
 
 export default class MSEController extends CustEvent {
 
@@ -188,7 +188,7 @@ export default class MSEController extends CustEvent {
    * @param {String} tag type
    */
   doCleanupSourceBuffer (type) {
-    // Log.verbose(this.tag, 'docleanBuffer');
+    Log.verbose(this.tag, 'docleanBuffer');
     const currentTime = this.video.currentTime;
     const sb = this.sourceBuffer[type];
     const buffered = sb.buffered;
@@ -233,6 +233,7 @@ export default class MSEController extends CustEvent {
     try {
       this.sourceBuffer[type].appendBuffer(data.buffer);
     } catch (e) {
+      console.log('error');
       this.queue[type].unshift(data);
       if(e.code === 22) {
         // chrome can cache about 350M

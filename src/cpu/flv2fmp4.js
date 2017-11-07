@@ -3,8 +3,9 @@ import flvparse from './flv/flvParse';
 import tagdemux from './flv/tagdemux';
 import mp4remux from './mp4/mp4remux';
 import mp4moof from './mp4/mp4moof';
-import { CustEvent } from 'chimee-helper';
-import Error from './utils/error'
+import {CustEvent} from 'chimee-helper-events';
+import Error from './utils/error';
+
 class flv2fmp4 {
 
     /**
