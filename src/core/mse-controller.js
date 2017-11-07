@@ -20,6 +20,8 @@ export default class MSEController extends CustEvent {
       onSourceClose: this.onSourceClose.bind(this),
       onSourceBufferError: this.onSourceBufferError.bind(this)
     };
+    this.hasVideo = true;
+    this.hasAudio = true;
     this.removeRangesList = {
       video: [],
       audio: []
@@ -41,6 +43,7 @@ export default class MSEController extends CustEvent {
       video: null,
       audio: null
     };
+    this.sourceBufferEvent();
   }
 
   /**
@@ -52,17 +55,21 @@ export default class MSEController extends CustEvent {
       Log.Error(this.tag, 'MediaSource has been attached to an HTMLMediaElement!');
       throw new Error('MediaSource has been attached to an HTMLMediaElement!');
     }
-    mediaInfo.data.videoCodec || (mediaInfo.data.videoCodec = 'avc1.640020');
-    mediaInfo.data.audioCodec || (mediaInfo.data.audioCodec = 'mp4a.40.2');
 
-    this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}`;
-    this.mimeCodec['audio'] = `video/mp4; codecs="${mediaInfo.data.audioCodec}`;
-
+    if(mediaInfo.data.hasAudio) {
+      this.mimeCodec['audio'] = `video/mp4; codecs="${mediaInfo.data.audioCodec}`;
+    } else {
+      this.hasAudio = false;
+    }
+    if(mediaInfo.data.hasVideo) {
+      this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}`;
+    } else {
+      this.hasVideo = false;
+    }
     const ms = this.mediaSource = new window.MediaSource();
     ms.addEventListener('sourceopen', this.e.onSourceOpen);
     ms.addEventListener('sourceended', this.e.onSourceEnded);
     ms.addEventListener('sourceclose', this.e.onSourceClose);
-    this.sourceBufferEvent();
   }
 
   /**
@@ -71,8 +78,13 @@ export default class MSEController extends CustEvent {
   onSourceOpen () {
     Log.verbose(this.tag, 'MediaSource onSourceOpen');
     this.mediaSource.removeEventListener('sourceopen', this.e.onSourceOpen);
-    this.addSourceBuffer('video');
-    this.addSourceBuffer('audio');
+    if(this.hasAudio) {
+      this.addSourceBuffer('audio');
+    }
+    if(this.hasVideo) {
+      this.addSourceBuffer('video');
+    }
+    
     if(this.hasQueueList()) {
       this.doUpdate();
     }
@@ -144,11 +156,12 @@ export default class MSEController extends CustEvent {
     this.on('mediaSegmentInit', (handler)=> {
       const data = handler.data;
       const type = data.type;
-      if (!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
-        this.queue[type].push(data.data);
-      } else {
-       this.appendBuffer(data.data, type);
-      }
+      // if (!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
+      //   this.queue[type].push(data.data);
+      // } else {
+      //  this.appendBuffer(data.data, type);
+      // }
+      this.queue[type].push(data.data);
     });
   }
 

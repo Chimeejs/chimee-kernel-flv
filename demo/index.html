@@ -25,10 +25,10 @@
 	// flv点播 http://yunxianchang.live.ujne7.com/vod-system-bj/TL1ce1196bce348070bfeef2116efbdea6.flv
 	// flv点播 http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv
 	// flv点播大文件 http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv
-	// 腾讯云 http://1253804432.vod2.myqcloud.com/3712977fvodgzp1253804432/f3f31e5f9031868223411915443/f0.flv
+	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	var player = document.querySelector('#player');
 	var Kernel = new chimeeKernelFlv(player,{
-	   src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+	   src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv',
 	   box: 'flv',
 	   isLive: false,
 	   preset: {
@@ -39,6 +39,9 @@
 	Kernel.load();
 	Kernel.on('mediaInfo', function(mediaInfo) {
 		console.log(mediaInfo);
+	})
+	Kernel.on('ended', function(mediaInfo) {
+		console.log("播放结束");
 	})
 </script>
 </html>

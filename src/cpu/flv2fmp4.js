@@ -200,7 +200,7 @@ class flv2fmp4 {
      * @memberof flv2fmp4
      */
     metaSucc(mi) {
-        if (this.onMediaInfo) {
+        if (this.onMediaInfo && mi) {
             this.onMediaInfo(mi||tagdemux._mediaInfo, { hasAudio: this.hasAudio, hasVideo: this.hasVideo });
         }
         // 获取ftyp和moov
@@ -213,9 +213,9 @@ class flv2fmp4 {
             // this.ftyp_moov_v=
             this.metas.map(item=>{
                 if(item[0]=='video'){
-                    this.ftyp_moov_v=mp4remux.generateInitSegment([item[1]]);
+                    this.ftyp_moov_v = mp4remux.generateInitSegment([item[1]]);
                 }else{
-                    this.ftyp_moov_a=mp4remux.generateInitSegment([item[1]]);
+                    this.ftyp_moov_a = mp4remux.generateInitSegment([item[1]]);
                 }
             })
         }else{
@@ -223,12 +223,12 @@ class flv2fmp4 {
         }
         
         if (this.onInitSegment && this.loadmetadata == false) {
-
+            
             if(this.ftyp_moov)
             {
                 this.onInitSegment(this.ftyp_moov);
             }else{
-                this.onInitSegment(this.ftyp_moov_v,this.ftyp_moov_a);
+                this.onInitSegment(this.ftyp_moov_v, this.ftyp_moov_a);
             }
             this.loadmetadata = true;
         }
