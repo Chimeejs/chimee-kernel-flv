@@ -31,7 +31,7 @@ export default class MSEController extends CustEvent {
       video: null,
       audio: null
     };
-    window.queue = this.queue = {
+    this.queue = {
       video: [],
       audio: []
     };
@@ -84,7 +84,6 @@ export default class MSEController extends CustEvent {
     if(this.hasVideo) {
       this.addSourceBuffer('video');
     }
-    
     if(this.hasQueueList()) {
       this.doUpdate();
     }
