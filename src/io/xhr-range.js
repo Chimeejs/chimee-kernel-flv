@@ -43,7 +43,7 @@ export default class RangeLoader extends CustEvent {
    * if don't need range don't set
    * @param  {object} range.from range.to
    */
-  open (range) {
+  open (range, keyframePoint) {
     const xhr = this.xhr = new XMLHttpRequest();
     xhr.open('GET', this.src, true);
     xhr.responseType = 'arraybuffer';
@@ -125,9 +125,6 @@ export default class RangeLoader extends CustEvent {
   onLoad (e) {
     if(!this.totalLength) {
       return;
-    }
-    if(this.range.to < this.totalLength) {
-      // this.open({from: this.range.to + 1, to: this.range.to + 1 + this.chunkSizeKB});
     }
 
     if(this.arrivalDataCallback) {

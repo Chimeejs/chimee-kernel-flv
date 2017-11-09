@@ -67,7 +67,6 @@ export default class Transmuxer extends CustEvent {
       });
     }
     if(keyframePoint) {
-      // this.keyframePoint = true;
       this.CPU.seek(keyframePoint);
     }
     const consumed = this.CPU.setflv(data);
@@ -192,8 +191,8 @@ export default class Transmuxer extends CustEvent {
     if(this.config.webWorker) {
       this.w.postMessage({cmd: 'seek', keyframe});
     } else {
-      this.loader = new IoLoader(this.config);
-      this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
+      // this.loader = new IoLoader(this.config);
+      // this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
       this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
     }
   }

@@ -83,7 +83,7 @@ export default class Ioloader extends CustEvent {
         this.cacheRemain += chunk.byteLength;
       } else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
         let stashArray = new Uint8Array(this.cacheBuffer, 0, this.bufferSize);
-        if (this.cacheRemain > 0) { 
+        if (this.cacheRemain > 0) {
           const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
           let consumed = 0;
           if(this.seekPonit) {
@@ -192,6 +192,10 @@ export default class Ioloader extends CustEvent {
 	*/
   seek (bytes, dropCache, keyframePoint) {
 		this.totalReceive = bytes;
+		this.initCacheBuffer();
+		this.totalReceive = bytes;
+		this.cacheRemain = 0;
+		this.stashByteStart = 0;
   	this.loader.open({from: bytes, to: -1}, keyframePoint);
   }
 
