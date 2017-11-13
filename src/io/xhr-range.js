@@ -35,9 +35,11 @@ export default class RangeLoader extends CustEvent {
   	this.xhr = null;
     this.src = src;
     this.totalLength = null;
-    this.chunkSizeKB = 393216;
+    this.chunkSizeKB = 524288;
     this.range = {};
     this.bytesStart = 0;
+    this.needSeek = false;
+    this.keyframePoint = null;
   }
   /**
    * if don't need range don't set
@@ -53,6 +55,14 @@ export default class RangeLoader extends CustEvent {
     xhr.onerror = this.onXhrError.bind(this);
     const r = range || {from: 0, to: -1};
     this.range.from = r.from;
+    if(r.to === -1) {
+      r.to = r.from + this.chunkSizeKB;
+    }
+    if(keyframePoint) {
+      this.bytesStart = range.from;
+      this.needSeek = true;
+      this.keyframePoint = keyframePoint;
+    }
     this.range.to = r.to;
     const headers = handleRange(r).headers;
     for(const i in headers) {
@@ -62,15 +72,23 @@ export default class RangeLoader extends CustEvent {
   }
 
   /**
+   * pause
+   */
+  pause () {
+    this.abort();
+  }
+  /**
    * abort request
    */
   abort () {
-    this.xhr.onreadystatechange = null;
-    this.xhr.onprogress = null;
-    this.xhr.onload = null;
-    this.xhr.onerror = null;
-    this.xhr.abort();
-    this.xhr = null;
+    if(this.xhr) {
+      this.xhr.onreadystatechange = null;
+      this.xhr.onprogress = null;
+      this.xhr.onload = null;
+      this.xhr.onerror = null;
+      this.xhr.abort();
+      this.xhr = null;
+    }
   }
 
   /**
@@ -115,7 +133,7 @@ export default class RangeLoader extends CustEvent {
     if(!this.totalLength) {
       this.totalLength = e.total;
       this.abort();
-      this.open({from: 0, to: this.chunkSizeKB});
+      this.open();
     }
   }
 
@@ -129,8 +147,15 @@ export default class RangeLoader extends CustEvent {
 
     if(this.arrivalDataCallback) {
       const chunk = e.target.response;
-      this.arrivalDataCallback(chunk, this.bytesStart);
+      if(this.needSeek) {
+        this.needSeek = false;
+        this.arrivalDataCallback(chunk, this.bytesStart, this.keyframePoint);
+      } else {
+        this.arrivalDataCallback(chunk, this.bytesStart);
+      }
+      
       this.bytesStart += chunk.byteLength;
+      this.open({from: this.bytesStart, to: -1});
     }
   }
 

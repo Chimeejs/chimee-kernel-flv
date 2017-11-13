@@ -14,7 +14,7 @@
 	</style>
 </head>
 <body>
-	<video id="player" controls="controls" width="800" height="500" autoplay muted></video>
+	<video id="player" controls="controls" width="800" height="500" muted autoplay></video>
 </body>
 <script src="/assets/index.js"></script>
 <script type="text/javascript">
@@ -28,18 +28,24 @@
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	var player = document.querySelector('#player');
 	var Kernel = new chimeeKernelFlv(player,{
-	   src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
-	   box: 'flv',
-	   isLive: false,
-		 webWorker: true
+		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+	  box: 'flv',
+	  isLive: false,
+		webWorker: false
 	});
-
-	Kernel.load();
+	
 	Kernel.on('mediaInfo', function(mediaInfo) {
 		console.log(mediaInfo);
 	})
-	Kernel.on('ended', function(mediaInfo) {
-		console.log("播放结束");
+	player.addEventListener('ended', function() {
+		console.log('ended');
 	})
+
+	player.addEventListener('canplay', function() {
+		console.log('canplay');
+	})
+
+	Kernel.load();
+
 </script>
 </html>

@@ -92,6 +92,7 @@ export default class FetchLoader extends CustEvent {
 	pump (reader, keyframePoint) { // ReadableStreamReader
     return reader.read().then((result) => {
         if (result.done) {
+					this.emit('end');
 					Log.verbose(this.tag, 'load end');
         } else {
         	if (this.requestAbort === true) {

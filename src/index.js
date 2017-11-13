@@ -118,7 +118,6 @@ export default class Flv extends CustEvent {
     this.transmuxer = new Transmuxer(this.mediaSource, this.config);
     this.transmuxer.on('mediaSegment', (handle)=> {
       this.mediaSource.emit('mediaSegment', handle.data);
-      // this.onmseUpdateEnd();
     });
 
     this.transmuxer.on('mediaSegmentInit', (handle)=> {
@@ -128,6 +127,11 @@ export default class Flv extends CustEvent {
     this.transmuxer.on('error', (handle)=> {
       this.emit('error', handle.data);
       this.transmuxer.pause();
+      this.mediaSource.pause();
+    });
+
+    this.transmuxer.on('end', (handle)=> {
+      this.mediaSource.endOfStream();
     });
 
     this.transmuxer.on('mediaInfo', (mediaInfo)=> {
@@ -266,6 +270,7 @@ export default class Flv extends CustEvent {
    */
   pauseTransmuxer () {
     this.transmuxer.pause();
+    this.mediaSource.pause();
     if(!this.timer) {
       this.timer = setInterval(this.heartbeat.bind(this), 1000);
     }

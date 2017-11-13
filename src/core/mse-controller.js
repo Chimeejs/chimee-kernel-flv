@@ -44,6 +44,7 @@ export default class MSEController extends CustEvent {
       audio: null
     };
     this.sourceBufferEvent();
+    this.complete = false;
   }
 
   /**
@@ -110,6 +111,8 @@ export default class MSEController extends CustEvent {
         }
       } else if(this.hasQueueList()) {
         this.doUpdate();
+      } else if(this.complete && !this.sourceBuffer[type].updating) {
+        this.endOfStream();
       }
       this.emit('updateend');
     });
@@ -232,7 +235,6 @@ export default class MSEController extends CustEvent {
     try {
       this.sourceBuffer[type].appendBuffer(data.buffer);
     } catch (e) {
-      console.log('error');
       this.queue[type].unshift(data);
       if(e.code === 22) {
         // chrome can cache about 350M
@@ -303,6 +305,32 @@ export default class MSEController extends CustEvent {
   }
 
   /**
+   * pause
+   */
+  pause () {
+    // this.endOfStream();
+  }
+
+  endOfStream () {
+    if (this.mediaSource) {
+      const ms = this.mediaSource;
+      this.complete = true;
+      const sb = this.sourceBuffer;
+      if(sb.video && sb.video.updating || sb.audio && sb.audio.updating) {
+        return;
+      } else {
+        if (ms.readyState === 'open') {
+          try {
+            ms.endOfStream();
+          } catch (error) {
+            Log.verbose(this.tag, error);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * destroy
    */
   destroy () {
@@ -328,13 +356,7 @@ export default class MSEController extends CustEvent {
         }
         this.sourceBuffer = null;
       }
-      if (ms.readyState === 'open') {
-        try {
-          ms.endOfStream();
-        } catch (error) {
-          Log.e(this.tag, error.message);
-        }
-      }
+      this.endOfStream();
       ms.removeEventListener('sourceopen', this.e.onSourceOpen);
       ms.removeEventListener('sourceended', this.e.onSourceEnded);
       ms.removeEventListener('sourceclose', this.e.onSourceClose);

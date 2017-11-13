@@ -37,6 +37,17 @@ export default class Transmuxer extends CustEvent {
       this.loader = new IoLoader(this.config);
       this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
       this.loader.open();
+      this.loaderBindEvent();
+    }
+  }
+  /**
+   * bindEvent
+   */
+  loaderBindEvent () {
+    if(this.loader) {
+      this.loader.on('end', ()=> {
+        this.emit('end');
+      });
     }
   }
   /**
@@ -205,8 +216,8 @@ export default class Transmuxer extends CustEvent {
       this.w.postMessage({cmd: 'refresh'});
     } else {
       this.pause();
-      this.loader = new IoLoader(this.config);
-      this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
+      // this.loader = new IoLoader(this.config);
+      // this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
       this.loader.open();
     }
   }

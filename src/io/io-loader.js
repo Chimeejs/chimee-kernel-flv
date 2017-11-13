@@ -27,7 +27,7 @@ export default class Ioloader extends CustEvent {
 		this.cacheRemain = 0;
 		this.stashByteStart = 0;
 		this.enableStash = true;
-		this.stashSize = 1024 * 384;
+		this.stashSize = this.config.stashSize || 1024 * 384;
 		this.resumeFrom = 0;
 		this.currentRange = {};
 		this.totalReceive = 0;
@@ -38,6 +38,7 @@ export default class Ioloader extends CustEvent {
 		this.loader.on('end', ()=> {
 			const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
 			this.arrivalDataCallback(buffer, this.stashByteStart);
+			this.emit('end');
 		})
 	}
 
