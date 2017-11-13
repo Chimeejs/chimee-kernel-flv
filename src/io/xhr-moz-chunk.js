@@ -40,12 +40,13 @@ export default class MozChunkLoader extends CustEvent {
     this.chunkSizeKB = 393216;
     this.range = {};
     this.bytesStart = 0;
+    this.keyframePoint = null;
   }
   /**
    * if don't need range don't set
    * @param  {object} range.from range.to
    */
-  open (range) {
+  open (range, keyframePoint) {
     const xhr = this.xhr = new XMLHttpRequest();
     xhr.open('GET', this.src, true);
     xhr.responseType = 'moz-chunked-arraybuffer';
@@ -57,6 +58,10 @@ export default class MozChunkLoader extends CustEvent {
       const r = range || {from: 0, to: -1};
       this.range.from = r.from;
       this.range.to = r.to;
+      if(keyframePoint) {
+        this.needSeek = true;
+        this.keyframePoint = keyframePoint;
+      }
       const headers = handleRange(r).headers;
       for(const i in headers) {
         xhr.setRequestHeader(i, headers[i]);
@@ -66,15 +71,23 @@ export default class MozChunkLoader extends CustEvent {
   }
 
   /**
+   * pause
+   */
+  pause () {
+    this.abort();
+  }
+  /**
    * abort request
    */
   abort () {
-    this.xhr.onreadystatechange = null;
-    this.xhr.onprogress = null;
-    this.xhr.onload = null;
-    this.xhr.onerror = null;
-    this.xhr.abort();
-    this.xhr = null;
+    if(this.xhr) {
+      this.xhr.onreadystatechange = null;
+      this.xhr.onprogress = null;
+      this.xhr.onload = null;
+      this.xhr.onerror = null;
+      this.xhr.abort();
+      this.xhr = null;
+    }
   }
 
   /**
@@ -124,7 +137,13 @@ export default class MozChunkLoader extends CustEvent {
     }
 
     const chunk = e.target.response;
-    this.arrivalDataCallback(chunk, this.bytesStart);
+    if(this.needSeek) {
+      this.needSeek = false;
+      this.arrivalDataCallback(chunk, this.bytesStart, this.keyframePoint);
+    } else {
+      this.arrivalDataCallback(chunk, this.bytesStart);
+    }
+    
     this.bytesStart += chunk.byteLength;
   }
 
