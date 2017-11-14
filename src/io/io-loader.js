@@ -39,7 +39,7 @@ export default class Ioloader extends CustEvent {
 			const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
 			this.arrivalDataCallback(buffer, this.stashByteStart);
 			this.emit('end');
-		})
+		});
 	}
 
 	/**

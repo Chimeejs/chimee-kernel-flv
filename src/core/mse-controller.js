@@ -348,6 +348,7 @@ export default class MSEController extends CustEvent {
       };
       // remove all sourcebuffers
       const sb = this.sourceBuffer;
+      this.endOfStream();
       if (sb) {
         if (ms.readyState !== 'closed') {
           ms.removeSourceBuffer(sb);
@@ -356,7 +357,6 @@ export default class MSEController extends CustEvent {
         }
         this.sourceBuffer = null;
       }
-      this.endOfStream();
       ms.removeEventListener('sourceopen', this.e.onSourceOpen);
       ms.removeEventListener('sourceended', this.e.onSourceEnded);
       ms.removeEventListener('sourceclose', this.e.onSourceClose);
