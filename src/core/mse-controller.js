@@ -280,10 +280,15 @@ export default class MSEController extends CustEvent {
   seek () {
     for (const type in this.sourceBuffer) {
       const sb = this.sourceBuffer[type];
-      try {
-        sb.abort();
-      } catch (e) {
+      if(!sb) {
+        continue;
+      }
+      if(this.mediaSource.readyState === 'open') {
+        try {
+          sb.abort();
+        } catch (e) {
           Log.error(this.tag, e.message);
+        }
       }
       this.queue[type] = [];
       for (let i = 0; i < sb.buffered.length; i++) {
@@ -321,6 +326,7 @@ export default class MSEController extends CustEvent {
       } else {
         if (ms.readyState === 'open') {
           try {
+            this.complete = false;
             ms.endOfStream();
           } catch (error) {
             Log.verbose(this.tag, error);

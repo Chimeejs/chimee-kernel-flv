@@ -3,7 +3,7 @@
 * author songguangyu
 * email 522963130@qq.com
 */
-import handleRange from './handleRange';
+import handleQuery from './handleQuery';
 import {CustEvent} from 'chimee-helper-events';
 import Log from 'chimee-helper-log';
 
@@ -54,9 +54,13 @@ export default class FetchLoader extends CustEvent {
 		if(!this.config.isLive) {
 			this.range.from = r.from;
 			this.range.to = r.to;
-			const headers = handleRange(r).headers;
-			for(const i in headers) {
-				reqHeaders.append(i, headers[i]);
+			const queryResult = handleQuery(r, this.config);
+			if(typeof queryResult === 'string') {
+				this.src = this.config.src + queryResult;
+			} else {
+				for(const i in queryResult) {
+					reqHeaders.append(i, queryResult[i]);
+				}
 			}
 		}
     if(keyframePoint) {
@@ -70,7 +74,6 @@ export default class FetchLoader extends CustEvent {
       cache: 'default',
       referrerPolicy: 'no-referrer-when-downgrade'
     };
-
 		fetch(this.src, params).then((res)=>{
 			if(res.ok) {
 				const reader = res.body.getReader();

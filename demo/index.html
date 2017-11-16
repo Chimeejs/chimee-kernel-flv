@@ -27,25 +27,19 @@
 	// flv点播大文件 http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	var player = document.querySelector('#player');
-	var Kernel1 = new chimeeKernelFlv(player,{
-		src: ' http://wspc01.pull.yximgs.com/gifshow/0ibDTEM8cKY.flv?wsTime=5a0d267a&wsSecret=34f9e90f11fc558db33805fe77bd1ccb&stat=DZRT1HUPed0WFOC5h%2FAiSyQkqmoYq24uHQy2BDPf2Xc1QujsKwDIVTpYYFupUFw0',
+	var Kernel = new chimeeKernelFlv(player,{
+		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
 	  box: 'flv',
-	  isLive: true,
-		webWorker: false
+	  isLive: false,
+		webWorker: false,
+		seekType: 'range'
 	});
-	
-	Kernel1.load();
-
-	setTimeout(function() {
-		Kernel1.destroy();
-		var Kernel = new chimeeKernelFlv(player,{
-			src: ' http://wspc01.pull.yximgs.com/gifshow/0ibDTEM8cKY.flv?wsTime=5a0d267a&wsSecret=34f9e90f11fc558db33805fe77bd1ccb&stat=DZRT1HUPed0WFOC5h%2FAiSyQkqmoYq24uHQy2BDPf2Xc1QujsKwDIVTpYYFupUFw0',
-			box: 'flv',
-			isLive: true,
-			webWorker: false
-		});
-		
-		Kernel.load();
-	}, 5000)
+	Kernel.on('mediaInfo', function(mediainfo) {
+		console.log(mediainfo);
+	})
+	Kernel.load();
+	player.addEventListener('ended', function() {
+		console.log('ended');
+	})
 </script>
 </html>

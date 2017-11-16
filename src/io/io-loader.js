@@ -48,15 +48,14 @@ export default class Ioloader extends CustEvent {
 	selectLoader () {
 		const config = this.config;
 		const url = this.config.src;
-
 		if(this.webSocketURLReg.test(url)) {
-			this.loader = new WebsocketLoader(url, config);
+			this.loader = new WebsocketLoader(url, config, this.queryHandle);
 		}else if(FetchLoader.isSupport()) {
-			this.loader = new FetchLoader(url, config);
+			this.loader = new FetchLoader(url, config, this.queryHandle);
 		} else if(MozChunkLoader.isSupport()) {
-			this.loader = new MozChunkLoader(url, config);
+			this.loader = new MozChunkLoader(url, config, this.queryHandle);
 		} else if(RangeLoader.isSupport()) {
-			this.loader = new RangeLoader(url, config);
+			this.loader = new RangeLoader(url, config, this.queryHandle);
 		}
 		this.loader.arrivalDataCallback = this.onLoaderChunkArrival.bind(this);
 	}

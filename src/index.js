@@ -173,9 +173,9 @@ export default class Flv extends CustEvent {
     let currentRangeEnd = 0;
 
     for (let i = 0; i < buffered.length; i++) {
-      const start = buffered.start(i);
+      // const start = buffered.start(i);
       const end = buffered.end(i);
-      if (start <= currentTime && currentTime < end) {
+      if (currentTime < end) {
         currentRangeEnd = end;
         return currentRangeEnd;
       }
