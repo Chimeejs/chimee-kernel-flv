@@ -196,7 +196,7 @@ export default class Flv extends CustEvent {
     }
     if(this.isTimeinBuffered(currentTime)) {
       if(this.config.alwaysSeekKeyframe) {
-        const nearlestkeyframe = this.transmuxer.getNearlestKeyframe(Math.floor(currentTime * 1000));
+        const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
         if (nearlestkeyframe) {
           this.requestSetTime = true;
           this.video.currentTime = nearlestkeyframe.keyframetime / 1000;
@@ -205,7 +205,7 @@ export default class Flv extends CustEvent {
     } else {
       Log.verbose(this.tag, 'do seek');
       this.transmuxer.pause();
-      const nearlestkeyframe = this.transmuxer.getNearlestKeyframe(Math.floor(currentTime * 1000));
+      const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
       this.transmuxer.seek(nearlestkeyframe);
       this.mediaSource.seek(currentTime);
@@ -289,10 +289,14 @@ export default class Flv extends CustEvent {
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
       this.video.removeAttribute('src');
-      this.transmuxer.destroy();
-      this.transmuxer = null;
-      this.mediaSource.destroy();
-      this.mediaSource = null;
+      if(this.transmuxer) {
+        this.transmuxer.destroy();
+        this.transmuxer = null;
+      }
+      if(this.mediaSource) {
+        this.mediaSource.destroy();
+        this.mediaSource = null;
+      }
     }
   }
 
@@ -309,6 +313,10 @@ export default class Flv extends CustEvent {
   }
 
   refresh () {
-    this.transmuxer.refresh();
+    if(this.transmuxer) {
+      this.transmuxer.refresh();
+    } else {
+      Log.verbose(this.tag, 'transmuxer not ready');
+    }
   }
 }

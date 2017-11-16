@@ -337,7 +337,10 @@ export default class MSEController extends CustEvent {
     if (this.mediaSource) {
       const ms = this.mediaSource;
       // pending segments should be discard
-      this.queue = [];
+      this.queue = {
+        video: [],
+        audio: []
+      };
       this.sourceBuffer = {
         video: null,
         audio: null

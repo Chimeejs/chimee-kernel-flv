@@ -1,7 +1,7 @@
 /**
 * XHR 点播
 * author songguangyu
-* emil 522963130@qq.com
+* email 522963130@qq.com
 */
 // import Log from 'helper/log';
 import handleRange from './handleRange';
@@ -153,7 +153,6 @@ export default class RangeLoader extends CustEvent {
       } else {
         this.arrivalDataCallback(chunk, this.bytesStart);
       }
-      
       this.bytesStart += chunk.byteLength;
       this.open({from: this.bytesStart, to: -1});
     }

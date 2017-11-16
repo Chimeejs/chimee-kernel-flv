@@ -1,7 +1,7 @@
 /**
 * 处理range的静态函数
 * author songguangyu
-* emil 522963130@qq.com
+* email 522963130@qq.com
 */
 export default function (range) {
   const headers = {};

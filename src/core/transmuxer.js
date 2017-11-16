@@ -239,7 +239,7 @@ export default class Transmuxer extends CustEvent {
    * get nearlest keyframe binary search
    * @param {Number} video time
    */
-  getNearlestKeyframe (times) {
+  getNearestKeyframe (times) {
     if(this.mediaInfo && this.mediaInfo.keyframesIndex) {
       const keyframesList = this.mediaInfo.keyframesIndex.times;
       const keyframesPositions = this.mediaInfo.keyframesIndex.filepositions;

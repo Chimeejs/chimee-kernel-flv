@@ -1,7 +1,7 @@
 /**
 * fetch firfox 直播 点播
 * author songguangyu
-* emil 522963130@qq.com
+* email 522963130@qq.com
 */
 import handleRange from './handleRange';
 import {CustEvent} from 'chimee-helper-events';
@@ -33,11 +33,11 @@ export default class FetchLoader extends CustEvent {
 		this.config = config;
 		this.range = {
 			from: 0,
-			to: 500000
+			to: 524288
 		};
 		this.src = src;
 		this.totalRange = null;
-		this.block = 500000;
+		this.block = 524288;
 		this.reader = null;
 		this.requestAbort = false;
 		this.arrivalDataCallback = null;

@@ -1,7 +1,7 @@
 /**
 * XHR firfox 直播 点播
 * author songguangyu
-* emil 522963130@qq.com
+* email 522963130@qq.com
 */
 // import Log from 'helper/log';
 import handleRange from './handleRange';

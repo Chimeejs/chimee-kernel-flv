@@ -1,7 +1,7 @@
 /**
 * 处理range的静态函数
 * author songguangyu
-* emil 522963130@qq.com
+* email 522963130@qq.com
 */
 
 import FetchLoader from './fetch';
@@ -111,7 +111,7 @@ export default class Ioloader extends CustEvent {
           }
           stashArray.set(new Uint8Array(chunk), this.cacheRemain);
           this.cacheRemain += chunk.byteLength;
-        } else { 
+        } else {
           let consumed = 0;
           if(this.seekPonit) {
           	consumed = this.arrivalDataCallback(chunk, byteStart, this.seekPonit);
