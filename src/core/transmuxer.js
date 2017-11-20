@@ -2,7 +2,7 @@ import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper-events';
 import Log from 'chimee-helper-log';
 import work from 'webworkify-webpack';
-import F2M from '../cpu/flv2fmp4';
+import F2M from 'chimee-flv2fmp4';
 /**
  * Transmuxer controller
  * @class Transmuxer
@@ -26,6 +26,7 @@ export default class Transmuxer extends CustEvent {
       });
       this.w.postMessage({cmd: 'init', data: config});
     }
+    this.lock = 0;
 	}
    /**
    * instance ioloader
@@ -80,6 +81,7 @@ export default class Transmuxer extends CustEvent {
     if(keyframePoint) {
       this.CPU.seek(keyframePoint);
     }
+
     const consumed = this.CPU.setflv(data);
     return consumed;
   }

@@ -10,11 +10,17 @@
 		}
 		video{
 			background: #000000;
+			float: left;
 		}
 	</style>
 </head>
 <body>
-	<video id="player" controls="controls" width="800" height="500" muted autoplay></video>
+	<section>
+			<video id="player" controls="controls" width="500" height="300" muted autoplay></video>
+	</section>
+	<section>
+			<video id="player2" controls="controls" width="500" height="300" muted autoplay></video>
+	</section>
 </body>
 <script src="/assets/index.js"></script>
 <script type="text/javascript">
@@ -27,12 +33,13 @@
 	// flv点播大文件 http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	var player = document.querySelector('#player');
-	var Kernel = new chimeeKernelFlv(player,{
+	var Kernel = new chimeeKernelFlv(player, {
 		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
 	  box: 'flv',
 	  isLive: false,
 		webWorker: false,
-		seekType: 'range'
+		seekType: 'range',
+		// stashSize: 1024 * 128
 	});
 	Kernel.on('mediaInfo', function(mediainfo) {
 		console.log(mediainfo);

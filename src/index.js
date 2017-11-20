@@ -1,8 +1,7 @@
-import {CustEvent} from 'chimee-helper';
 import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
-import {throttle, deepAssign, Log, UAParser} from 'chimee-helper';
+import {CustEvent, throttle, deepAssign, Log, UAParser} from 'chimee-helper';
 /**
  * flv controller
  * @export

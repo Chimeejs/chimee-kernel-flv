@@ -8,9 +8,9 @@ module.exports = {
 
   output: {
     path: path.resolve(__dirname, '../lib'),
-    filename: 'index.js',
+    filename: 'index.es.mjs',
     library: 'chimeeKernelFlv',
-    libraryTarget: 'umd',
+    libraryTarget: 'commonjs',
     libraryExport: 'default'
   },
 
@@ -19,13 +19,23 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: [
-          path.resolve(__dirname, '../node_modules')
+          path.resolve(__dirname, '../node_modules/**')
         ],
         use: [
           {
             loader: 'babel-loader',
             options: {
-              'presets': ['latest'],
+              'babelrc': false,
+              'presets': [
+                [
+                  'env',
+                  {
+                    'es2015': {
+                      'modules': false
+                    }
+                  }
+                ]
+              ],
             }
           },
           {
