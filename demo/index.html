@@ -48,5 +48,22 @@
 	player.addEventListener('ended', function() {
 		console.log('ended');
 	})
+
+	var player2 = document.querySelector('#player2');
+	var Kernel2 = new chimeeKernelFlv(player2, {
+		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+	  box: 'flv',
+	  isLive: false,
+		webWorker: false,
+		seekType: 'range',
+		// stashSize: 1024 * 128
+	});
+	Kernel2.on('mediaInfo', function(mediainfo) {
+		console.log(mediainfo);
+	})
+	Kernel2.load();
+	player2.addEventListener('ended', function() {
+		console.log('ended');
+	})
 </script>
 </html>
