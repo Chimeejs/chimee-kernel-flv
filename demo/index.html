@@ -34,9 +34,9 @@
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	var player = document.querySelector('#player');
 	var Kernel = new chimeeKernelFlv(player, {
-		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+		src: 'http://flv-live.jia.360.cn/live_jia_public/_LC_RE_non_3607275405215113340051159639_BX.flv',
 	  box: 'flv',
-	  isLive: false,
+	  isLive: true,
 		webWorker: false,
 		seekType: 'range',
 		// stashSize: 1024 * 128
@@ -46,23 +46,6 @@
 	})
 	Kernel.load();
 	player.addEventListener('ended', function() {
-		console.log('ended');
-	})
-
-	var player2 = document.querySelector('#player2');
-	var Kernel2 = new chimeeKernelFlv(player2, {
-		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
-	  box: 'flv',
-	  isLive: false,
-		webWorker: false,
-		seekType: 'range',
-		// stashSize: 1024 * 128
-	});
-	Kernel2.on('mediaInfo', function(mediainfo) {
-		console.log(mediainfo);
-	})
-	Kernel2.load();
-	player2.addEventListener('ended', function() {
 		console.log('ended');
 	})
 </script>

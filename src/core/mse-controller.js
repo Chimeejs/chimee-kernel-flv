@@ -58,12 +58,12 @@ export default class MSEController extends CustEvent {
     }
 
     if(mediaInfo.data.hasAudio) {
-      this.mimeCodec['audio'] = `video/mp4; codecs="${mediaInfo.data.audioCodec}`;
+      this.mimeCodec['audio'] = `audio/mp4; codecs="${mediaInfo.data.audioCodec}"`;
     } else {
       this.hasAudio = false;
     }
     if(mediaInfo.data.hasVideo) {
-      this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}`;
+      this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}"`;
     } else {
       this.hasVideo = false;
     }
