@@ -1,5 +1,6 @@
 import {CustEvent} from 'chimee-helper-events';
 import Log from 'chimee-helper-log';
+import {ERRORNO} from '$const';
 
 export default class MSEController extends CustEvent {
 
@@ -54,16 +55,17 @@ export default class MSEController extends CustEvent {
   init (mediaInfo) {
     if (this.mediaSource) {
       Log.Error(this.tag, 'MediaSource has been attached to an HTMLMediaElement!');
-      throw new Error('MediaSource has been attached to an HTMLMediaElement!');
+      this.emit('error', {errno: ERRORNO.MEDIASOURCE_ERROR, errmsg: 'MediaSource has been attached to an HTMLMediaElement!'});
+      return;
     }
 
-    if(mediaInfo.data.hasAudio) {
-      this.mimeCodec['audio'] = `audio/mp4; codecs="${mediaInfo.data.audioCodec}"`;
+    if(mediaInfo.hasAudio) {
+      this.mimeCodec['audio'] = `audio/mp4; codecs="${mediaInfo.audioCodec}"`;
     } else {
       this.hasAudio = false;
     }
-    if(mediaInfo.data.hasVideo) {
-      this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.data.videoCodec}"`;
+    if(mediaInfo.hasVideo) {
+      this.mimeCodec['video'] = `video/mp4; codecs="${mediaInfo.videoCodec}"`;
     } else {
       this.hasVideo = false;
     }
@@ -241,7 +243,7 @@ export default class MSEController extends CustEvent {
         Log.verbose(this.tag, 'MediaSource bufferFull');
         this.emit('bufferFull');
       } else {
-       this.emit('error', e.message);
+        this.emit('error', {errno: ERRORNO.APPENDBUFFER_ERROR, errmsg: e});
       }
     }
   }
@@ -270,7 +272,7 @@ export default class MSEController extends CustEvent {
    * @param {Object} evnet
    */
   onSourceBufferError (e) {
-    this.emit('error', e);
+    this.emit('error', {errnono: ERRORNO.SOURCEBUFFER_ERROR, errmsg: e});
     Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 
@@ -287,6 +289,7 @@ export default class MSEController extends CustEvent {
         try {
           sb.abort();
         } catch (e) {
+          this.emit('error', {errno: ERRORNO.SBABORT_ERROR, errmsg: e});
           Log.error(this.tag, e.message);
         }
       }
@@ -326,10 +329,11 @@ export default class MSEController extends CustEvent {
       } else {
         if (ms.readyState === 'open') {
           try {
-            this.complete = false;
             ms.endOfStream();
+            this.complete = false;
           } catch (error) {
             Log.verbose(this.tag, error);
+            this.emit('error', {errno: ERRORNO.ENDOFSTREAM_ERROR, errmsg: error});
           }
         }
       }
@@ -357,6 +361,7 @@ export default class MSEController extends CustEvent {
       };
       // remove all sourcebuffers
       const sb = this.sourceBuffer;
+      this.complete = false;
       this.endOfStream();
       if (sb) {
         if (ms.readyState !== 'closed') {
@@ -370,15 +375,6 @@ export default class MSEController extends CustEvent {
       ms.removeEventListener('sourceended', this.e.onSourceEnded);
       ms.removeEventListener('sourceclose', this.e.onSourceClose);
       this.mediaSource = null;
-    }
-    if (this._mediaElement) {
-      this._mediaElement.src = '';
-      this._mediaElement.removeAttribute('src');
-      this._mediaElement = null;
-    }
-    if (this._mediaSourceObjectURL) {
-      window.URL.revokeObjectURL(this._mediaSourceObjectURL);
-      this._mediaSourceObjectURL = null;
     }
   }
 }

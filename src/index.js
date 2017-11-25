@@ -1,12 +1,7 @@
 import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
-// import {CustEvent, throttle, deepAssign, Log, UAParser} from 'chimee-helper';
-import {CustEvent} from 'chimee-helper-events';
-import Log from 'chimee-helper-log';
-import UAParser from 'ua-parser-js';
-import {throttle} from 'chimee-helper-utils';
-import {deepAssign} from 'toxic-utils';
+import {CustEvent, throttle, deepAssign, Log, UAParser} from 'chimee-helper';
 
 /**
  * flv controller
@@ -98,7 +93,8 @@ export default class Flv extends CustEvent {
   attachMedia () {
     this.mediaSource = new MseContriller(this.video, this.config);
 
-    this.mediaSource.on('error', ()=>{
+    this.mediaSource.on('error', (errorMessage)=>{
+      this.emit('error', errorMessage.data);
       if(this.transmuxer) {
         this.transmuxer.pause();
       }
@@ -120,35 +116,44 @@ export default class Flv extends CustEvent {
     if(src) {
       this.config.src = src;
     }
-    this.transmuxer = new Transmuxer(this.mediaSource, this.config);
-    this.transmuxer.on('mediaSegment', (handle)=> {
-      this.mediaSource.emit('mediaSegment', handle.data);
+    this.transmuxer = new Transmuxer(this.mediaSource, this.config, this.globalEvent);
+    this.transmuxerEvent(this.transmuxer);
+    this.transmuxer.loadSource();
+  }
+
+  transmuxerEvent (transmuxer) {
+    const mediaSource = this.mediaSource;
+    transmuxer.on('mediaSegment', (handle)=> {
+      mediaSource.emit('mediaSegment', handle.data);
     });
 
-    this.transmuxer.on('mediaSegmentInit', (handle)=> {
-      this.mediaSource.emit('mediaSegmentInit', handle.data);
+    transmuxer.on('mediaSegmentInit', (handle)=> {
+      mediaSource.emit('mediaSegmentInit', handle.data);
     });
 
-    this.transmuxer.on('error', (handle)=> {
-      this.emit('error', handle.data);
-      this.transmuxer.pause();
-      this.mediaSource.pause();
+    transmuxer.on('error', (errorMessage)=> {
+      this.emit('error', errorMessage.data);
+      transmuxer.pause();
+      mediaSource.pause();
     });
 
-    this.transmuxer.on('end', (handle)=> {
-      this.mediaSource.endOfStream();
+    transmuxer.on('end', (handle)=> {
+      mediaSource.endOfStream();
     });
 
-    this.transmuxer.on('mediaInfo', (mediaInfo)=> {
+    transmuxer.on('heartbeat', (handle)=> {
+      this.emit('heartbeat', handle.data);
+    });
+
+    transmuxer.on('mediaInfo', (mediaInfo)=> {
       if(!this.mediaInfo) {
         this.mediaInfo = mediaInfo;
-        this.emit('mediaInfo', mediaInfo);
-        this.mediaSource.init(mediaInfo);
-        this.video.src = URL.createObjectURL(this.mediaSource.mediaSource);
+        this.emit('mediaInfo', mediaInfo.data);
+        mediaSource.init(mediaInfo.data);
+        this.video.src = URL.createObjectURL(mediaSource.mediaSource);
         this.video.addEventListener('seeking', throttle(this._seek.bind(this), 200, {leading: false}));
       }
     });
-    this.transmuxer.loadSource();
   }
 
   /**
@@ -238,7 +243,6 @@ export default class Flv extends CustEvent {
       this.pauseTransmuxer();
     }
   }
-
   /**
    * heartbeat
    * @memberof Flv
@@ -246,9 +250,7 @@ export default class Flv extends CustEvent {
   heartbeat () {
     const currentTime = this.video.currentTime;
     const buffered = this.video.buffered;
-
     let needResume = false;
-
     for (let i = 0; i < buffered.length; i++) {
       const from = buffered.start(i);
       const to = buffered.end(i);
@@ -318,10 +320,10 @@ export default class Flv extends CustEvent {
   }
 
   refresh () {
-    if(this.transmuxer) {
-      this.transmuxer.refresh();
+    if(this.transmuxer && this.mediaSource) {
+      this._seek(0);
     } else {
-      Log.verbose(this.tag, 'transmuxer not ready');
+      Log.verbose(this.tag, 'transmuxer & mediaSource not ready');
     }
   }
 }

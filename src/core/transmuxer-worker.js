@@ -24,9 +24,6 @@ export default function (ctx) {
       case 'resume':
       loader.resume();
       break;
-      case 'refresh':
-      refresh();
-      break;
       case 'destroy':
       destroy();
       break;
@@ -80,13 +77,6 @@ export default function (ctx) {
     loader = new IoLoader(config);
     loader.arrivalDataCallback = arrivalDataCallbackWorker;
     loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
-  }
-
-  function refresh () {
-    loader.pause();
-    loader = new IoLoader(config);
-    loader.arrivalDataCallback = arrivalDataCallbackWorker;
-    loader.open();
   }
 
   function destroy () {

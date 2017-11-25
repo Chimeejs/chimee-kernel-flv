@@ -13,7 +13,11 @@ module.exports = {
     libraryTarget: 'umd',
     libraryExport: 'default'
   },
-
+  resolve: {
+    alias: {
+      $const: path.resolve(__dirname, '../src/const.js')
+    }
+  },
   module: {
     loaders: [
       {

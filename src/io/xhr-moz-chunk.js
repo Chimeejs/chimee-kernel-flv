@@ -6,6 +6,7 @@
 // import Log from 'helper/log';
 import handleRange from './handleRange';
 import {CustEvent} from 'chimee-helper-events';
+import {ERRORNO} from '$const';
 
 /**
  * MozChunkLoader
@@ -120,7 +121,7 @@ export default class MozChunkLoader extends CustEvent {
           url: this.src,
           msg: 'http Error: http code ' + xhr.status
         };
-        this.emit(this.tag, info);
+        this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: info});
       }
     }
   }
@@ -143,7 +144,6 @@ export default class MozChunkLoader extends CustEvent {
     } else {
       this.arrivalDataCallback(chunk, this.bytesStart);
     }
-    
     this.bytesStart += chunk.byteLength;
   }
 
@@ -164,6 +164,6 @@ export default class MozChunkLoader extends CustEvent {
       url: this.src,
       msg: e.constructor.name + ' ' + e.type
     };
-    this.emit(this.tag, info);
+    this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: info});
   }
 }

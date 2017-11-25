@@ -1,8 +1,8 @@
 import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper-events';
-import Log from 'chimee-helper-log';
 import work from 'webworkify-webpack';
 import F2M from 'chimee-flv2fmp4';
+import {ERRORNO} from '$const';
 /**
  * Transmuxer controller
  * @class Transmuxer
@@ -10,7 +10,7 @@ import F2M from 'chimee-flv2fmp4';
  * @param {object} config
  */
 export default class Transmuxer extends CustEvent {
-	constructor (mediaSource, config) {
+	constructor (mediaSource, config, globalEvent) {
 		super();
 		this.config = {};
 		this.tag = 'transmuxer';
@@ -38,29 +38,23 @@ export default class Transmuxer extends CustEvent {
       this.loader = new IoLoader(this.config);
       this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
       this.loader.open();
-      this.loaderBindEvent();
+      this.loaderBindEvent(this.loader);
     }
   }
   /**
    * bindEvent
    */
-  loaderBindEvent () {
-    if(this.loader) {
-      this.loader.on('end', ()=> {
-        this.emit('end');
-      });
-    }
+  loaderBindEvent (loader) {
+    loader.on('end', ()=> {
+      this.emit('end');
+    });
+    loader.on('error', (handle)=> {
+      this.emit('error', handle.data);
+    });
+    loader.on('heartbeat', (handle)=> {
+      this.emit('heartbeat', handle.data);
+    });
   }
-  /**
-   * data arrive to webworker
-   */
-  // arrivalDataCallbackWorker (data, byteStart, keyframePoint) {
-  //   if(keyframePoint) {
-  //     this.w.postMessage({cmd: 'seek', source: data});
-  //   }
-  //   this.w.postMessage({cmd: 'pipe', source: data});
-  //   return;
-  // }
    /**
    * loader data callback
    * @param {arraybuffer} data
@@ -72,16 +66,15 @@ export default class Transmuxer extends CustEvent {
       this.CPU = new F2M();
       this.CPU.onInitSegment = this.onRemuxerInitSegmentArrival.bind(this);
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
-      this.CPU.onError = this.onCPUError.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
       this.CPU.on('error', (handle)=> {
-        this.emit('error', handle.data);
+        this.emit('error', {errno: ERRORNO.CODEC_ERROR, errmsg: handle.data});
       });
     }
+    
     if(keyframePoint) {
       this.CPU.seek(keyframePoint);
     }
-
     const consumed = this.CPU.setflv(data);
     return consumed;
   }
@@ -102,17 +95,10 @@ export default class Transmuxer extends CustEvent {
       this.mediaInfo = data.source;
       this.emit('mediaInfo', data.source);
       break;
+      case 'error':
+      this.emit('error', data.source);
+      break;
     }
-  }
-
-  /**
-   * Demux error
-   *  @param {string} type
-   *  @param {string} info
-   */
-  onDemuxError (type, info) {
-  	Log.error(this.tag, `DemuxError: type = ${type}, info = ${info}`);
-    this.emit('DemuxError', type, info);
   }
 
   /**
@@ -148,14 +134,6 @@ export default class Transmuxer extends CustEvent {
    */
   onRemuxerMediaSegmentArrival (type, data) {
     this.emit('mediaSegment', {type, data});
-  }
-
-  /**
-   * cpu error
-   * @param {object} error message
-   */
-  onCPUError (handle) {
-    this.emit('ERROR', handle.data);
   }
 
   /**
@@ -198,29 +176,13 @@ export default class Transmuxer extends CustEvent {
    */
   seek (keyframe) {
     if(!this.isSeekable()) {
-      this.emit('error', '这个flv视频不支持seek');
+      this.emit('error', {errno: ERRORNO.CANNOT_SEEK, errmsg: '这个flv视频不支持seek'});
       return false;
     }
     if(this.config.webWorker) {
       this.w.postMessage({cmd: 'seek', keyframe});
     } else {
-      // this.loader = new IoLoader(this.config);
-      // this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
       this.loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
-    }
-  }
-
-  /**
-   * refresh
-   */
-  refresh () {
-    if(this.config.webWorker) {
-      this.w.postMessage({cmd: 'refresh'});
-    } else {
-      this.pause();
-      // this.loader = new IoLoader(this.config);
-      // this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
-      this.loader.open();
     }
   }
 

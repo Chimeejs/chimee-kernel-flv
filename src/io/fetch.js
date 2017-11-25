@@ -6,7 +6,7 @@
 import handleQuery from './handleQuery';
 import {CustEvent} from 'chimee-helper-events';
 import Log from 'chimee-helper-log';
-
+import {ERRORNO} from '$const';
 /**
  * FetchLoader
  * @class FetchLoader
@@ -42,6 +42,7 @@ export default class FetchLoader extends CustEvent {
 		this.requestAbort = false;
 		this.arrivalDataCallback = null;
 		this.bytesStart = 0;
+		this.heartbeat = null;
 	}
 	/**
    * if don't need range don't set
@@ -79,6 +80,8 @@ export default class FetchLoader extends CustEvent {
 				const reader = res.body.getReader();
 				return this.pump(reader, keyframePoint);
 			}
+		}).catch((e)=>{
+			this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e});
 		});
 	}
 
@@ -110,7 +113,7 @@ export default class FetchLoader extends CustEvent {
         	return this.pump(reader);
         }
       }).catch((e) => {
-      	this.emit('error', e.message);
+      	this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e.message});
       });
 	}
 }
