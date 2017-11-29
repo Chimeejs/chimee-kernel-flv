@@ -52,6 +52,12 @@
 	Kernel.on('heartbeat', function(msg) {
 		// console.log(msg.data);
 	})
-	
+
+	player.addEventListener('loadedmetadata', function() {
+		Kernel.seek(100);
+	})
+	setTimeout(function() {
+		Kernel.destroy();
+	}, 1000)
 </script>
 </html>

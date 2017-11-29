@@ -104,6 +104,9 @@ export default class MSEController extends CustEvent {
     sb.addEventListener('error', this.e.onSourceBufferError);
     sb.addEventListener('abort', () => Log.verbose(this.tag, 'sourceBuffer: abort'));
     sb.addEventListener('updateend', () => {
+      if(!this.sourceBuffer) {
+        return;
+      }
       if(this.hasRemoveList()) {
         if(this.removeRangesList.video.length) {
           this.cleanRangesList('video');

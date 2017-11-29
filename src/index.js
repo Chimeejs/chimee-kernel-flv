@@ -299,6 +299,7 @@ export default class Flv extends CustEvent {
       this.video.src = '';
       this.video.removeAttribute('src');
       if(this.transmuxer) {
+        this.transmuxer.pause();
         this.transmuxer.destroy();
         this.transmuxer = null;
       }
