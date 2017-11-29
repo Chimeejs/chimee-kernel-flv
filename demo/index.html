@@ -15,8 +15,13 @@
 	</style>
 </head>
 <body>
+	<button id="q1">切换1</button>
+	<button id="q2">切换2</button>
 	<section>
 			<video id="player" controls="controls" width="500" height="300" muted autoplay></video>
+	</section>
+	<section>
+		<video id="player2" controls="controls" width="500" height="300" muted autoplay></video>
 	</section>
 </body>
 <script src="/assets/index.js"></script>
@@ -29,35 +34,80 @@
 	// flv点播 http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv
 	// flv点播大文件 http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
+	window.aaaa = 0;
 	var player = document.querySelector('#player');
-	var Kernel = new chimeeKernelFlv(player, {
-		src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
-	  box: 'flv',
-	  isLive: false,
-		webWorker: false,
-		seekType: 'range',
-		stashSize: 1024 * 384
-	});
-	Kernel.on('mediaInfo', function(mediainfo) {
-		console.log(mediainfo);
-	})
-	Kernel.load();
-	player.addEventListener('ended', function() {
-		console.log('ended');
-	})
-
-	Kernel.on('error', function(errnomessage) {
-		console.log(errnomessage.data);
-	})
-	Kernel.on('heartbeat', function(msg) {
-		// console.log(msg.data);
-	})
-
+	var player2 = document.querySelector('#player2');
+	var button1 = document.querySelector('#q1');
+	var button2 = document.querySelector('#q2');
+	var Kernel1 = null;
+	var Kernel2 = null;
 	player.addEventListener('loadedmetadata', function() {
-		Kernel.seek(100);
+			Kernel1.seek(100);
 	})
-	setTimeout(function() {
-		Kernel.destroy();
-	}, 1000)
+	player2.addEventListener('loadedmetadata', function() {
+			Kernel2.seek(100);
+	})
+
+	button1.addEventListener('click', function() {
+		if(Kernel2) {
+			Kernel2.destroy();
+			Kernel2 = null;
+		}
+		a();
+	})
+	button2.addEventListener('click', function() {
+		if(Kernel1) {
+			Kernel1.destroy();
+			Kernel1 = null;
+		}
+		b();
+	})
+	function a () {
+		Kernel1 = new chimeeKernelFlv(player, {
+			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+			box: 'flv',
+			isLive: false,
+			webWorker: false,
+			seekType: 'range',
+			stashSize: 1024 * 384
+		});
+		Kernel1.on('mediaInfo', function(mediainfo) {
+			console.log(mediainfo);
+		})
+		Kernel1.load();
+		
+
+		Kernel1.on('error', function(errnomessage) {
+			console.log(errnomessage.data);
+		})
+		Kernel1.on('heartbeat', function(msg) {
+			// console.log(msg.data);
+		})
+	}
+
+	function b () {
+		Kernel2 = new chimeeKernelFlv(player2, {
+			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv',
+			box: 'flv',
+			isLive: false,
+			webWorker: false,
+			seekType: 'range',
+			stashSize: 1024 * 384
+		});
+		Kernel2.on('mediaInfo', function(mediainfo) {
+			console.log(mediainfo);
+		})
+		Kernel2.load();
+		
+
+		Kernel2.on('error', function(errnomessage) {
+			console.log(errnomessage.data);
+		})
+		Kernel2.on('heartbeat', function(msg) {
+			// console.log(msg.data);
+		})
+	}
+	
+	a();
 </script>
 </html>

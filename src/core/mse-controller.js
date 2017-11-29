@@ -237,6 +237,9 @@ export default class MSEController extends CustEvent {
    * @param {String} tag type
    */
   appendBuffer (data, type) {
+    if(!this.sourceBuffer[type]) {
+      return;
+    }
     try {
       this.sourceBuffer[type].appendBuffer(data.buffer);
     } catch (e) {

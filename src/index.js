@@ -39,10 +39,12 @@ export default class Flv extends CustEvent {
     this.video = videodom;
     this.box = 'flv';
     this.timer = null;
+    this.seekTimer = null;
     this.config = deepAssign({}, defaultConfig, config);
     this.requestSetTime = false;
     this.bindEvents();
     this.attachMedia();
+    
   }
   /**
    * internal set currentTime
@@ -151,7 +153,7 @@ export default class Flv extends CustEvent {
         this.emit('mediaInfo', mediaInfo.data);
         mediaSource.init(mediaInfo.data);
         this.video.src = URL.createObjectURL(mediaSource.mediaSource);
-        this.video.addEventListener('seeking', throttle(this._seek.bind(this), 200, {leading: false}));
+        // this.video.addEventListener('seeking', this.throttle());
       }
     });
   }
@@ -217,10 +219,10 @@ export default class Flv extends CustEvent {
       this.transmuxer.pause();
       const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
-      setTimeout(()=>{
+      this.seekTimer = setTimeout(()=>{
         this.transmuxer.seek(nearlestkeyframe);
         this.mediaSource.seek(currentTime);
-      }, 1);
+      }, 100);
       this.requestSetTime = true;
       this.video.currentTime = currentTime;
       window.clearInterval(this.timer);
@@ -294,7 +296,10 @@ export default class Flv extends CustEvent {
    * @memberof Flv
    */
   destroy () {
+    window.clearInterval(this.timer);
+    window.clearInterval(this.seekTimer);
     if(this.video) {
+      this.video.removeEventListener('seeking', this.throttle());
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
       this.video.removeAttribute('src');
