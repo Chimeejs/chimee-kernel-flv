@@ -217,8 +217,10 @@ export default class Flv extends CustEvent {
       this.transmuxer.pause();
       const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
-      this.transmuxer.seek(nearlestkeyframe);
-      this.mediaSource.seek(currentTime);
+      setTimeout(()=>{
+        this.transmuxer.seek(nearlestkeyframe);
+        this.mediaSource.seek(currentTime);
+      }, 1);
       this.requestSetTime = true;
       this.video.currentTime = currentTime;
       window.clearInterval(this.timer);
