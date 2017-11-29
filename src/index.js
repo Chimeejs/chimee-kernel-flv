@@ -299,7 +299,6 @@ export default class Flv extends CustEvent {
     window.clearInterval(this.timer);
     window.clearInterval(this.seekTimer);
     if(this.video) {
-      this.video.removeEventListener('seeking', this.throttle());
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
       this.video.removeAttribute('src');
