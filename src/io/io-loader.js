@@ -35,7 +35,7 @@ export default class Ioloader extends CustEvent {
 		this.timer = null;
 		this.heartBeatInterval = null;
 		this.preTotalReceive = 0;
-    this.pauseLock = false;
+    this.seekLock = false;
 		this.webSocketURLReg = /wss?:\/\/(.+?)\//;
 		this.selectLoader();
 		this.bindEvent();
@@ -77,12 +77,12 @@ export default class Ioloader extends CustEvent {
 	* @param  {number} chunk byte postion
 	*/
 	onLoaderChunkArrival (chunk, byteStart, keyframePoint) {
-		if(this.pauseLock && !keyframePoint) {
+		if(this.seekLock && !keyframePoint) {
       return;
 		}
 		if(keyframePoint) {
 			this.seekPonit = keyframePoint;
-			this.pauseLock = false;
+			this.seekLock = false;
 		}
 		if(this.arrivalDataCallback) {
 			this.totalReceive += chunk.byteLength;
@@ -175,7 +175,6 @@ export default class Ioloader extends CustEvent {
 	* 暂停
 	*/
 	pause () {
-		this.pauseLock = true;
 		this.loader.pause();
 	}
 
@@ -214,6 +213,7 @@ export default class Ioloader extends CustEvent {
 	* seek
 	*/
   seek (bytes, dropCache, keyframePoint) {
+		this.seekLock = true;
 		this.totalReceive = bytes;
 		this.preTotalReceive = bytes;
 		this.initCacheBuffer();
