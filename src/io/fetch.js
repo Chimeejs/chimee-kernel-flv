@@ -67,7 +67,7 @@ export default class FetchLoader extends CustEvent {
     if(keyframePoint) {
     	this.bytesStart = 0;
     }
-    this.bytesStart = range.from;
+		this.bytesStart = range.from;
 		const params = {
       method: 'GET',
       headers: reqHeaders,

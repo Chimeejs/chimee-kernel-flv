@@ -12,13 +12,12 @@ import {ERRORNO} from '$const';
 export default class Transmuxer extends CustEvent {
 	constructor (mediaSource, config, globalEvent) {
 		super();
-		this.config = {};
+		this.config = config || {};
 		this.tag = 'transmuxer';
     this.loader = null;
     this.CPU = null;
     this.keyframePoint = false;
     this.w = null;
-    Object.assign(this.config, config);
     if(this.config.webWorker) {
       this.w = work(require.resolve('./transmuxer-worker'));
       this.w.addEventListener('message', (e) => {
@@ -71,8 +70,7 @@ export default class Transmuxer extends CustEvent {
         this.emit('error', {errno: ERRORNO.CODEC_ERROR, errmsg: handle.data});
       });
     }
-    
-    if(keyframePoint) {
+    if(keyframePoint !== undefined) {
       this.CPU.seek(keyframePoint);
     }
     const consumed = this.CPU.setflv(data);

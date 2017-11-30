@@ -21,7 +21,7 @@ export default class Ioloader extends CustEvent {
 		super();
 		this.loader = null;
 		this.config = {};
-		Object.assign(this.config, config);
+		this.config = config || {};
 		this.bufferSize = 1024 * 1024 * 3; // initial size: 3MB
 		this.cacheBuffer = new ArrayBuffer(this.bufferSize);
 		this.cacheRemain = 0;
@@ -31,7 +31,7 @@ export default class Ioloader extends CustEvent {
 		this.resumeFrom = 0;
 		this.currentRange = {};
 		this.totalReceive = 0;
-		this.seekPonit = 0;
+		this.seekPonit = undefined;
 		this.timer = null;
 		this.heartBeatInterval = null;
 		this.preTotalReceive = 0;
@@ -77,10 +77,10 @@ export default class Ioloader extends CustEvent {
 	* @param  {number} chunk byte postion
 	*/
 	onLoaderChunkArrival (chunk, byteStart, keyframePoint) {
-		if(this.seekLock && !keyframePoint) {
+		if(this.seekLock && keyframePoint === undefined) {
       return;
 		}
-		if(keyframePoint) {
+		if(keyframePoint !== undefined) {
 			this.seekPonit = keyframePoint;
 			this.seekLock = false;
 		}
@@ -101,9 +101,9 @@ export default class Ioloader extends CustEvent {
         if (this.cacheRemain > 0) {
 					const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
           let consumed = 0;
-          if(this.seekPonit) {
+          if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart, this.seekPonit);
-          	this.seekPonit = 0;
+          	this.seekPonit = undefined;
           } else {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart);
           }
@@ -127,9 +127,9 @@ export default class Ioloader extends CustEvent {
           this.cacheRemain += chunk.byteLength;
         } else {
           let consumed = 0;
-          if(this.seekPonit) {
+          if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(chunk, byteStart, this.seekPonit);
-          	this.seekPonit = 0;
+          	this.seekPonit = undefined;
           } else {
           	consumed = this.arrivalDataCallback(chunk, byteStart);
           }

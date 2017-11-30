@@ -1,7 +1,7 @@
 import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
-import {CustEvent, throttle, deepAssign, Log, UAParser} from 'chimee-helper';
+import {CustEvent, throttle, deepAssign, Log, UAParser, isNumber} from 'chimee-helper';
 
 /**
  * flv controller
@@ -190,9 +190,9 @@ export default class Flv extends CustEvent {
     let currentRangeEnd = 0;
 
     for (let i = 0; i < buffered.length; i++) {
-      // const start = buffered.start(i);
+      const start = buffered.start(i);
       const end = buffered.end(i);
-      if (currentTime < end) {
+      if (start <= currentTime && currentTime < end) {
         currentRangeEnd = end;
         return currentRangeEnd;
       }
@@ -205,7 +205,7 @@ export default class Flv extends CustEvent {
    */
   _seek (seconds) {
     this.currentTimeLock = true;
-    let currentTime = seconds && !isNaN(seconds) ? seconds : this.video.currentTime;
+    let currentTime = isNumber(seconds) && !isNaN(seconds) ? seconds : this.video.currentTime;
     if(this.requestSetTime) {
       this.requestSetTime = false;
       this.currentTimeLock = false;
@@ -225,8 +225,8 @@ export default class Flv extends CustEvent {
       const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
       this.seekTimer = setTimeout(()=>{
-        this.transmuxer.seek(nearlestkeyframe);
         this.mediaSource.seek(currentTime);
+        this.transmuxer.seek(nearlestkeyframe);
       }, 100);
       this.requestSetTime = true;
       this.video.currentTime = currentTime;
