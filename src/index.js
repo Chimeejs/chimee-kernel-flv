@@ -42,6 +42,7 @@ export default class Flv extends CustEvent {
     this.seekTimer = null;
     this.config = deepAssign({}, defaultConfig, config);
     this.requestSetTime = false;
+    this.throttle = null;
     this.bindEvents();
     this.attachMedia();
   }
@@ -152,14 +153,15 @@ export default class Flv extends CustEvent {
         this.emit('mediaInfo', mediaInfo.data);
         mediaSource.init(mediaInfo.data);
         this.video.src = URL.createObjectURL(mediaSource.mediaSource);
-        this.video.addEventListener('seeking', this._seek.bind(this));
+        this.video.addEventListener('seeking', this._throttle.call(this));
       }
     });
   }
 
-  // _throttle () {
-  //  return throttle(this._seek.bind(this), 200, {leading: false});
-  // }
+  _throttle () {
+    this.throttle = throttle(this._seek.bind(this), 200, {leading: false});
+    return this.throttle;
+  }
 
   /**
    * seek in buffered
@@ -301,7 +303,7 @@ export default class Flv extends CustEvent {
   destroy () {
     window.clearInterval(this.timer);
     window.clearInterval(this.seekTimer);
-    this.video.removeEventListener('seeking', this._throttle.bind(this));
+    this.video.removeEventListener('seeking', this.throttle);
     if(this.video) {
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
