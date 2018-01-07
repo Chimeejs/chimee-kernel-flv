@@ -18,7 +18,7 @@
 	<button id="q1">切换1</button>
 	<button id="q2">切换2</button>
 	<section>
-			<video id="player" controls="controls" width="500" height="300" muted autoplay></video>
+			<video id="player" controls="controls" width="500" height="300"  autoplay></video>
 	</section>
 	<section>
 		<video id="player2" controls="controls" width="500" height="300" muted autoplay></video>
@@ -41,35 +41,20 @@
 	var button2 = document.querySelector('#q2');
 	var Kernel1 = null;
 	var Kernel2 = null;
-	player.addEventListener('loadedmetadata', function() {
-		Kernel1.seek(100);
-	})
-	player2.addEventListener('loadedmetadata', function() {
-			Kernel2.seek(100);
-	})
-
-	button1.addEventListener('click', function() {
-		if(Kernel2) {
-			Kernel2.destroy();
-			Kernel2 = null;
-		}
-		a();
-	})
-	button2.addEventListener('click', function() {
-		if(Kernel1) {
-			Kernel1.destroy();
-			Kernel1 = null;
-		}
-		b();
-	})
+	// player.addEventListener('loadedmetadata', function() {
+	// 	Kernel1.seek(100);
+	// })
+	// player2.addEventListener('loadedmetadata', function() {
+	// 		Kernel2.seek(100);
+	// })
 	function a () {
 		Kernel1 = new chimeeKernelFlv(player, {
-			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+			src: 'http://1.180.204.180/tx-game.pull.yximgs.com/live/6000_S034RBoQ8tQ.flv?txSecret=212261e99c65b2146c2e98e686727495&txTime=5a2fb4b9&stat=DZRT1HUPed0WFOC5h%2FAiSyQkqmoYq24uHQy2BDPf2Xc1QujsKwDIVTpYYFupUFw0&dispatch_from=ztc10.245.97.99&utime=1512989498012',
 			box: 'flv',
-			isLive: false,
+			isLive: true,
 			webWorker: false,
 			seekType: 'range',
-			stashSize: 1024 * 384
+			stashSize: 1024 * 64
 		});
 		Kernel1.on('mediaInfo', function(mediainfo) {
 			console.log(mediainfo);
@@ -81,29 +66,6 @@
 			console.log(errnomessage.data);
 		})
 		Kernel1.on('heartbeat', function(msg) {
-			// console.log(msg.data);
-		})
-	}
-
-	function b () {
-		Kernel2 = new chimeeKernelFlv(player2, {
-			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv',
-			box: 'flv',
-			isLive: false,
-			webWorker: false,
-			seekType: 'range',
-			stashSize: 1024 * 384
-		});
-		Kernel2.on('mediaInfo', function(mediainfo) {
-			console.log(mediainfo);
-		})
-		Kernel2.load();
-		
-
-		Kernel2.on('error', function(errnomessage) {
-			console.log(errnomessage.data);
-		})
-		Kernel2.on('heartbeat', function(msg) {
 			// console.log(msg.data);
 		})
 	}

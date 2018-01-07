@@ -62,7 +62,8 @@ export default class Transmuxer extends CustEvent {
    */
   arrivalDataCallback (data, byteStart, keyframePoint) {
     if(!this.CPU) {
-      this.CPU = new F2M();
+      this.config.isLive ? this.config._isLive = true : this.config._isLive = false;
+      this.CPU = new F2M(this.config);
       this.CPU.onInitSegment = this.onRemuxerInitSegmentArrival.bind(this);
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
