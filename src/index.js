@@ -339,4 +339,13 @@ export default class Flv extends CustEvent {
       Log.verbose(this.tag, 'transmuxer & mediaSource not ready');
     }
   }
+
+  /**
+   * stop stream load
+   * @memberof Flv
+   */
+  stopLoad () {
+    this.transmuxer && this.transmuxer.pause();
+    this.mediaSource && this.mediaSource.pause();
+  }
 }
