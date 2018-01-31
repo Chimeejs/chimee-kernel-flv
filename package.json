@@ -1,6 +1,6 @@
 {
   "name": "chimee-kernel-flv",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "kernel-flv of chimee",
   "main": "lib/index.js",
   "scripts": {
@@ -38,7 +38,7 @@
     "babel-preset-flow": "^6.23.0",
     "babel-preset-latest": "^6.24.1",
     "babel-preset-stage-0": "^6.24.1",
-    "chimee-flv2fmp4": "^0.2.0",
+    "chimee-flv2fmp4": "^0.3.5",
     "chimee-helper": "^0.2.8",
     "chimee-helper-events": "^0.1.0",
     "chimee-helper-log": "^0.1.2",
