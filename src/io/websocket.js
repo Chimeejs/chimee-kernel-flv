@@ -61,9 +61,9 @@ export default class WebSocketLoader extends CustEvent {
 		this.emit('end');
 	}
 
-	// onWebSocketOpen() {
-		
-	// }
+	onWebSocketOpen() {
+
+	}
 
 	onWebSocketMessage (e) {
 		if (e.data instanceof ArrayBuffer) {
@@ -86,7 +86,7 @@ export default class WebSocketLoader extends CustEvent {
 		this.receivedLength += chunk.byteLength;
 
 		if (this.arrivalDataCallback) {
-			this.arrivalDataCallback(chunk, byteStart, this.receivedLength);
+			this.arrivalDataCallback(chunk, byteStart);
 		}
 	}
 
