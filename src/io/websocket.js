@@ -20,12 +20,6 @@ export default class WebSocketLoader extends CustEvent {
 		this._receivedLength = 0;
 	}
 
-	destroy () {
-		if (this._ws) {
-			this.abort();
-		}
-	}
-
 	open (range, keyframePoint) {
 		try {
 			const ws = this._ws = new self.WebSocket(this.src);
@@ -43,13 +37,12 @@ export default class WebSocketLoader extends CustEvent {
 		}
 	}
 
-	abort () {
+	pause () {
 		const ws = this._ws;
 		if (ws && (ws.readyState === 0 || ws.readyState === 1)) {
 			this._requestAbort = true;
 			ws.close();
 		}
-
 		this._ws = null;
 	}
 
