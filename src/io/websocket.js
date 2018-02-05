@@ -61,6 +61,10 @@ export default class WebSocketLoader extends CustEvent {
 		this.emit('end');
 	}
 
+	// onWebSocketOpen() {
+		
+	// }
+
 	onWebSocketMessage (e) {
 		if (e.data instanceof ArrayBuffer) {
 			this.dispatchArrayBuffer(e.data);

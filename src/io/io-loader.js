@@ -36,7 +36,7 @@ export default class Ioloader extends CustEvent {
 		this.heartBeatInterval = null;
 		this.preTotalReceive = 0;
     this.seekLock = false;
-		this.webSocketURLReg = /wss?:\/\/(.+?)\//;
+		this.webSocketURLReg = /wss?:\/\/(.+?)/;
 		this.selectLoader();
 		this.bindEvent();
 	}
@@ -152,6 +152,7 @@ export default class Ioloader extends CustEvent {
 	*/
 	initCacheBuffer () {
 		this.cacheRemain = 0;
+		this.totalReceive = 0;
 		this.cacheBuffer = new ArrayBuffer(this.bufferSize);
 	}
 
@@ -227,6 +228,7 @@ export default class Ioloader extends CustEvent {
 	*/
 	destroy () {
 		this.pause();
+		this.initCacheBuffer();
 		window.clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = null;
 	}
