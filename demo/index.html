@@ -16,9 +16,10 @@
 </head>
 <body>
 	<button id="q1">切换1</button>
-	<button id="q2">切换2</button>
+	<button id="ddd">删除重新创建</button>
+	<button id="dddd">删除</button>
 	<section>
-			<video id="player" controls="controls" width="500" height="300" muted autoplay></video>
+			<video id="player" controls="controls" width="500" height="300"  autoplay></video>
 	</section>
 	<section>
 		<video id="player2" controls="controls" width="500" height="300" muted autoplay></video>
@@ -36,40 +37,25 @@
 	// 单视频案例 http://yunxianchang.live.ujne7.com/vod-system-bj/116_4102574c430-9c70-48c2-9123-fb8aa9a577c3.flv
 	window.aaaa = 0;
 	var player = document.querySelector('#player');
-	var player2 = document.querySelector('#player2');
+	var ddd = document.querySelector('#ddd');
 	var button1 = document.querySelector('#q1');
 	var button2 = document.querySelector('#q2');
 	var Kernel1 = null;
 	var Kernel2 = null;
-	player.addEventListener('loadedmetadata', function() {
-			Kernel1.seek(100);
-	})
-	player2.addEventListener('loadedmetadata', function() {
-			Kernel2.seek(100);
-	})
-
-	button1.addEventListener('click', function() {
-		if(Kernel2) {
-			Kernel2.destroy();
-			Kernel2 = null;
-		}
-		a();
-	})
-	button2.addEventListener('click', function() {
-		if(Kernel1) {
-			Kernel1.destroy();
-			Kernel1 = null;
-		}
-		b();
-	})
+	// player.addEventListener('loadedmetadata', function() {
+	// 	Kernel1.seek(100);
+	// })
+	// player2.addEventListener('loadedmetadata', function() {
+	// 		Kernel2.seek(100);
+	// })
 	function a () {
 		Kernel1 = new chimeeKernelFlv(player, {
-			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/114_40402c0cbbe-5eba-42dc-8442-e6e09aa4152e.flv',
+			src: 'ws://127.0.0.1:8576',
 			box: 'flv',
 			isLive: false,
 			webWorker: false,
 			seekType: 'range',
-			stashSize: 1024 * 384
+			stashSize: 1024 * 64
 		});
 		Kernel1.on('mediaInfo', function(mediainfo) {
 			console.log(mediainfo);
@@ -84,30 +70,19 @@
 			// console.log(msg.data);
 		})
 	}
-
-	function b () {
-		Kernel2 = new chimeeKernelFlv(player2, {
-			src: 'http://yunxianchang.live.ujne7.com/vod-system-bj/TL2791e64b69ea0bea234c284c694986aa.flv',
-			box: 'flv',
-			isLive: false,
-			webWorker: false,
-			seekType: 'range',
-			stashSize: 1024 * 384
-		});
-		Kernel2.on('mediaInfo', function(mediainfo) {
-			console.log(mediainfo);
-		})
-		Kernel2.load();
-		
-
-		Kernel2.on('error', function(errnomessage) {
-			console.log(errnomessage.data);
-		})
-		Kernel2.on('heartbeat', function(msg) {
-			// console.log(msg.data);
-		})
-	}
 	
 	a();
+
+	ddd.onclick = function() {
+		Kernel1.stopLoad();
+		Kernel1.destroy();
+		a();
+	}
+
+	dddd.onclick = function() {
+		Kernel1.stopLoad();
+		Kernel1.destroy();
+		Kernel1 = null;
+	}
 </script>
 </html>

@@ -606,11 +606,14 @@ export default class Flv extends CustEvent {
   stopLoad () {
     this.transmuxer && this.transmuxer.pause();
     this.mediaSource && this.mediaSource.pause();
+<<<<<<< HEAD
     if (this.realtimeBeaconTimer) {
       // Send the last realtime beacon and clear timer
       window.clearInterval(this.realtimeBeaconTimer);
       this._sendRealtimeBeacon();
       this.realtimeBeaconTimer = null;
     }
+=======
+>>>>>>> upstream/master
   }
 }
