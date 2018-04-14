@@ -1,7 +1,7 @@
 import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper-events';
 import work from 'webworkify-webpack';
-import F2M from '@ks/chimee-flv2fmp4';
+import F2M from 'chimee-flv2fmp4';
 import {ERRORNO} from '$const';
 /**
  * Transmuxer controller
