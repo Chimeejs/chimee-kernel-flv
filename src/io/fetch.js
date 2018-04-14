@@ -64,19 +64,24 @@ export default class FetchLoader extends CustEvent {
 				}
 			}
 		}
-    if(keyframePoint) {
-    	this.bytesStart = 0;
-    }
-    this.bytesStart = range.from;
+		if (keyframePoint) {
+			this.bytesStart = 0;
+		}
+		this.bytesStart = range.from;
 		const params = {
-      method: 'GET',
-      headers: reqHeaders,
-      mode: 'cors',
-      cache: 'default',
-      referrerPolicy: 'no-referrer-when-downgrade'
-    };
-		fetch(this.src, params).then((res)=>{
-			if(res.ok) {
+			method: 'GET',
+			headers: reqHeaders,
+			mode: 'cors',
+			cache: 'default',
+			referrerPolicy: 'no-referrer-when-downgrade'
+		};
+		const receiveStart = Date.now();
+		fetch(this.src, params).then((res) => {
+			this.emit('performance', {
+				type: 'receive-first-package-duration',
+				value: Date.now() - receiveStart
+			});
+			if (res.ok) {
 				const reader = res.body.getReader();
 				return this.pump(reader, keyframePoint);
 			}

@@ -153,10 +153,14 @@ export default class MSEController extends CustEvent {
       if(this.needCleanupSourceBuffer(type)) {
         this.doCleanupSourceBuffer(type);
       }
-      if(!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
-        this.queue[type].push(data.data);
-      } else {
-        this.appendBuffer(data.data, type);
+      // if(!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
+      //   this.queue[type].push(data.data);
+      // } else {
+      //   this.appendBuffer(data.data, type);
+      // }
+      this.queue[type].push(data.data);
+      if(this.sourceBuffer[type] && !this.hasRemoveList()) {
+        this.doUpdate();
       }
     });
 
@@ -195,7 +199,6 @@ export default class MSEController extends CustEvent {
    * @param {String} tag type
    */
   doCleanupSourceBuffer (type) {
-    Log.verbose(this.tag, 'docleanBuffer');
     const currentTime = this.video.currentTime;
     const sb = this.sourceBuffer[type];
     const buffered = sb.buffered;
@@ -249,7 +252,7 @@ export default class MSEController extends CustEvent {
         Log.verbose(this.tag, 'MediaSource bufferFull');
         this.emit('bufferFull');
       } else {
-        this.emit('error', {errno: ERRORNO.APPENDBUFFER_ERROR, errmsg: e});
+        // this.emit('error', {errno: ERRORNO.APPENDBUFFER_ERROR, errmsg: e});
       }
     }
   }

@@ -1,4 +1,4 @@
-import F2M from 'chimee-flv2fmp4';
+import F2M from '@ks/chimee-flv2fmp4';
 import IoLoader from '../io/io-loader';
 
 export default function (ctx) {

@@ -1,7 +1,129 @@
 import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
-import {CustEvent, throttle, deepAssign, Log, UAParser} from 'chimee-helper';
+import {CustEvent, throttle, deepAssign, Log, UAParser, isNumber} from 'chimee-helper';
+
+class FlvRealtimeBeaconBuilder {
+  constructor(src) {
+    this._resetForNewSession(src);
+    this._resetForNewInterval();
+  }
+
+  _resetForNewSession(src) {
+    this.currentPlaybackSpeed = 1.0;
+    this.lastDownloadedBytes = 0.0;
+    this.playUrl = src;
+    this.domain = new URL(src).hostname;
+    this.playStartTimestampMillis = new Date().getTime();
+    this.lastVideoBuffered = { start: -1e9, end: -1e9 };
+  }
+
+  _resetForNewInterval() {
+    this.currentPlaybackSpeedTimestamp = new Date().getTime();
+    this.playbackSpeedStat = {
+      '0.75x': 0,
+      '1.25x': 0,
+      '1.5x': 0
+    };
+    this.statTimestampMillis = new Date().getTime();
+    this.bufferingCount = 0;
+    this.bufferingDurationMillis = 0;
+    // null indicates not buffering, non-null indicates buffering
+    this.bufferingStartTimestampMillis = this.bufferingStartTimestampMillis ? new Date().getTime() : null;
+    this.downloadedBytes = 0;
+    this.audioBufferedMillis = 0;
+    this.videoBufferedMillis = 0;
+    this.demuxedDurationSec = 0;
+    this.excessiveDataDroppedSec = 0;
+  }
+
+  videoBufferedUpdated(buffered) {
+    if (buffered.length === 0) {
+      return;
+    }
+    let start = buffered.start(buffered.length - 1);
+    let end = buffered.end(buffered.length - 1);
+    if (start > this.lastVideoBuffered.end + 1e-3) {
+      this.demuxedDurationSec += end - start;
+      this.lastVideoBuffered = { start, end };
+    } else {
+      this.demuxedDurationSec += Math.max(0, end - this.lastVideoBuffered.end);
+      this.lastVideoBuffered.end = end;
+    }
+  }
+
+  playbackSpeedChanged(newSpeed) {
+    let EPS = 1e-3;
+    let now = new Date().getTime();
+    let accumulatedMs = now - this.currentPlaybackSpeedTimestamp;
+    let speedKey = Math.abs(newSpeed - 0.75) < EPS ? '0.75x' :
+                   Math.abs(newSpeed - 1.25) < EPS ? '1.25x' :
+                   Math.abs(newSpeed - 1.5) < EPS ? '1.5x' : null;
+    if (!speedKey) {
+      // Some speeds, like "1x", are not counted
+      return;
+    }
+    this.playbackSpeedStat[speedKey] += accumulatedMs;
+    this.currentPlaybackSpeedTimestamp = new Date().getTime();
+  }
+
+  bufferingStarted() {
+    ++this.bufferingCount;
+    this.bufferingStartTimestampMillis = new Date().getTime();
+  }
+
+  bufferingEnded() {
+    let now = new Date().getTime();
+    if (this.bufferingStartTimestampMillis != null) {
+      // If this.bufferingStartTimestampMillis is null or undefined
+      // Do not accumulated buffering duration
+      this.bufferingDurationMillis += now - this.bufferingStartTimestampMillis;
+    }
+    this.bufferingStartTimestampMillis = null;
+  }
+
+  updateDownloadedBytes(newDownloadedBytes) {
+    let newlyDownloaded = newDownloadedBytes - this.lastDownloadedBytes;
+    this.downloadedBytes += newlyDownloaded;
+    this.lastDownloadedBytes = newDownloadedBytes;
+  }
+
+  setAudioBufferedSec(audioBufferedSec) {
+    this.audioBufferedMillis = Math.round(audioBufferedSec * 1000);
+  }
+
+  setVideoBufferedSec(videoBufferedSec) {
+    this.videoBufferedMillis = Math.round(videoBufferedSec * 1000);
+  }
+
+  excessiveDataDropped(droppedSec) {
+    this.excessiveDataDroppedSec += droppedSec;
+  }
+
+  buildAndStartNewInterval() {
+    let now = new Date().getTime();
+    let ongoingBufferingDuration = this.bufferingStartTimestampMillis == null ? 0 : now - this.bufferingStartTimestampMillis;
+    let ongoingBufferingCount = this.bufferingStartTimestampMillis == null ? 0 : 1;
+    let ret = {
+      'play_url': this.playUrl,
+      'domain': this.domain,
+      'play_start_time': this.playStartTimestampMillis,
+      'tick_start': this.statTimestampMillis,
+      'tick_duration': now - this.statTimestampMillis,
+      'block_count': this.bufferingCount + ongoingBufferingCount,
+      'buffer_time': this.bufferingDurationMillis + ongoingBufferingDuration,
+      'kbytes_received': this.downloadedBytes >> 10,
+      'played_video_duration': now - this.statTimestampMillis - (this.bufferingDurationMillis + ongoingBufferingDuration),
+      'demuxed_video_duration': Math.round(this.demuxedDurationSec * 1000),
+      'dropped_packet_duration': Math.round(this.excessiveDataDroppedSec * 1000),
+      'a_buf_len': this.audioBufferedMillis,
+      'v_buf_len': this.videoBufferedMillis,
+      'speed_chg_metric': this.playbackSpeedStat
+    };
+    this._resetForNewInterval();
+    return ret;
+  }
+}
 
 /**
  * flv controller
@@ -40,11 +162,14 @@ export default class Flv extends CustEvent {
     this.box = 'flv';
     this.timer = null;
     this.seekTimer = null;
+    this.checkBufferTimer = null;
+    this.realtimeBeaconTimer = null;
     this.config = deepAssign({}, defaultConfig, config);
     this.requestSetTime = false;
     this.throttle = null;
     this.bindEvents();
     this.attachMedia();
+
   }
   /**
    * internal set currentTime
@@ -85,6 +210,12 @@ export default class Flv extends CustEvent {
           this.internalPropertyHandle();
         }
       });
+      this._onVideoWaiting = this._onVideoWaiting.bind(this);
+      this._onVideoPlaying = this._onVideoPlaying.bind(this);
+      this.video.addEventListener('waiting', this._onVideoWaiting);
+      this.video.addEventListener('playing', this._onVideoPlaying);
+      this._lastBufferd = null;
+      this.checkBufferTimer = setInterval(this._checkBuffer.bind(this), 200);
     }
   }
 
@@ -118,6 +249,8 @@ export default class Flv extends CustEvent {
     if(src) {
       this.config.src = src;
     }
+    this.realtimeBeaconBuilder = new FlvRealtimeBeaconBuilder(this.config.src);
+    this.realtimeBeaconTimer = setInterval(this._sendRealtimeBeacon.bind(this), 10000);
     this.transmuxer = new Transmuxer(this.mediaSource, this.config, this.globalEvent);
     this.transmuxerEvent(this.transmuxer);
     this.transmuxer.loadSource();
@@ -145,6 +278,10 @@ export default class Flv extends CustEvent {
 
     transmuxer.on('heartbeat', (handle)=> {
       this.emit('heartbeat', handle.data);
+      this.realtimeBeaconBuilder.updateDownloadedBytes(handle.data.totalReceive);
+    });
+    transmuxer.on('performance', (handle)=> {
+      this.emit('performance', handle.data);
     });
 
     transmuxer.on('mediaInfo', (mediaInfo)=> {
@@ -154,6 +291,9 @@ export default class Flv extends CustEvent {
         mediaSource.init(mediaInfo.data);
         this.video.src = URL.createObjectURL(mediaSource.mediaSource);
         this.video.addEventListener('seeking', this._throttle.call(this));
+      } else {
+        // kwai 多次media上报也扔出去（应对metadata切换）
+        this.emit('mediaInfo', mediaInfo.data);
       }
     });
   }
@@ -180,24 +320,27 @@ export default class Flv extends CustEvent {
     return false;
   }
 
-  /**
-   * get current buffer end
-   * @memberof Flv
-   */
-  getCurrentBufferEnd () {
-    const buffered = this.video.buffered;
-    const currentTime = this.video.currentTime;
+  _getBufferEnd(buffered, currentTime) {
     let currentRangeEnd = 0;
 
     for (let i = 0; i < buffered.length; i++) {
-      // const start = buffered.start(i);
+      const start = buffered.start(i);
       const end = buffered.end(i);
-      if (currentTime < end) {
+      if (start <= currentTime && currentTime < end) {
         currentRangeEnd = end;
         return currentRangeEnd;
       }
     }
   }
+
+  /**
+   * get current buffer end
+   * @memberof Flv
+   */
+  getCurrentBufferEnd () {
+    return this._getBufferEnd(this.video.buffered, this.video.currentTime);
+  }
+
   /**
    * _seek
    * @param {number} seek time
@@ -205,7 +348,7 @@ export default class Flv extends CustEvent {
    */
   _seek (seconds) {
     this.currentTimeLock = true;
-    let currentTime = seconds && !isNaN(seconds) ? seconds : this.video.currentTime;
+    let currentTime = isNumber(seconds) && !isNaN(seconds) ? seconds : this.video.currentTime;
     if(this.requestSetTime) {
       this.requestSetTime = false;
       this.currentTimeLock = false;
@@ -225,8 +368,8 @@ export default class Flv extends CustEvent {
       const nearlestkeyframe = this.transmuxer.getNearestKeyframe(Math.floor(currentTime * 1000));
       currentTime = nearlestkeyframe.keyframetime / 1000;
       this.seekTimer = setTimeout(()=>{
-        this.transmuxer.seek(nearlestkeyframe);
         this.mediaSource.seek(currentTime);
+        this.transmuxer.seek(nearlestkeyframe);
       }, 100);
       this.requestSetTime = true;
       this.video.currentTime = currentTime;
@@ -242,6 +385,9 @@ export default class Flv extends CustEvent {
    * @memberof Flv
    */
   onmseUpdateEnd () {
+    if (this.mediaSource.sourceBuffer.video) {
+      this.realtimeBeaconBuilder.videoBufferedUpdated(this.mediaSource.sourceBuffer.video.buffered);
+    }
     if (this.config.isLive) {
       return;
     }
@@ -281,6 +427,110 @@ export default class Flv extends CustEvent {
   }
 
   /**
+   * Check buffer length regularly and apply various policies to avoid buffering
+   * @memberof Flv
+   */
+  _checkBuffer() {
+    const EPS = 1e-3;
+    if (this.config.isLive) {
+      // Live stream, try to maintain buffer between 3s and 8s
+      // TODO make 3s and 8s configurable
+      let currentBufferEnd = this.getCurrentBufferEnd();
+      if (typeof currentBufferEnd === 'undefined') {
+        // QUICKFIX:
+        // if getCurrentBuffereEnd() is undefined, check if currentTime is in a gap,
+        // and if it is jump to the latest buffered area
+        
+        const buffered = this.video.buffered;
+        const lenBuffered = buffered.length;
+        if (lenBuffered > 0 
+            && buffered.start(lenBuffered - 1) > this.video.currentTime + EPS) {
+          // In a gap, jump to latest buffered area
+          Log.verbose('currentTime being in no-data GaP detected. Jumping to '
+              + buffered.start(lenBuffered - 1));
+          this.video.currentTime = buffered.start(lenBuffered - 1);
+          currentBufferEnd = buffered.end(lenBuffered - 1);
+        } else {
+          // Not in a gap, noop
+          return;
+        }
+      }
+      const buffered = currentBufferEnd - this.video.currentTime;
+      if (this._lastBufferd != null) {
+        const changePlaybackRate = (toRate) => {
+          Log.verbose('Change playback rate from ' + this.video.playbackRate + ' to ' + toRate + ', buffered:' + buffered);
+          this.video.playbackRate = toRate;
+          this.realtimeBeaconBuilder.playbackSpeedChanged(toRate);
+        };
+        if (this.video.playbackRate < 1 - EPS) {
+          // Slowed down case. If buffer recovers to >= 5s, resume regular speed
+          if (buffered > 5 - EPS) {
+            changePlaybackRate(1.0);
+          }
+        } else if (this.video.playbackRate > 1 + EPS) {
+          // Speeded up case. If buffer recovers to <= 5s, resume regular speed
+          if (buffered < 5 + EPS) {
+            changePlaybackRate(1.0);
+          } else if (buffered > 8 + EPS) {
+            // drop excessive data
+            Log.verbose('Dropping excessive data, buffer: ' + buffered);
+            this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
+            this.video.currentTime += buffered - 5;
+          }
+        } else {
+          // Regular speed case. If buffer drops to < 3s or grows to > 6s, adjust speed accordingly
+          // If buffer significantly grows to > 10s, keep 5s and drop excessive data
+          if (buffered < 3 - EPS) {
+            // changePlaybackRate(0.75);
+          } else if (buffered > 8 + EPS) {
+            // drop excessive data
+            Log.verbose('Dropping excessive data, buffer: ' + buffered);
+            this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
+            this.video.currentTime += buffered - 5;
+          } else if (buffered > 6 + EPS) {
+            // changePlaybackRate(1.25);
+          }
+        }
+      }
+      this._lastBufferd = buffered;
+    }
+  }
+
+  /**
+   * Emit realtime analystic data
+   */
+  _sendRealtimeBeacon() {
+    if (this.mediaSource.sourceBuffer.audio) {
+      let bufferEnd = this._getBufferEnd(
+          this.mediaSource.sourceBuffer.audio.buffered,
+          this.video.currentTime);
+      this.realtimeBeaconBuilder.setAudioBufferedSec(bufferEnd - this.video.currentTime);
+    }
+    if (this.mediaSource.sourceBuffer.video) {
+      let bufferEnd = this._getBufferEnd(
+          this.mediaSource.sourceBuffer.video.buffered,
+          this.video.currentTime);
+      this.realtimeBeaconBuilder.setVideoBufferedSec(bufferEnd - this.video.currentTime);
+    }
+    let beacon = this.realtimeBeaconBuilder.buildAndStartNewInterval();
+    this.emit('realtimeBeacon', beacon);
+  }
+
+  /**
+   * 'waiting' event listener
+   */
+  _onVideoWaiting() {
+    this.realtimeBeaconBuilder.bufferingStarted();
+  }
+
+  /**
+   * 'playing' event listener
+   */
+  _onVideoPlaying() {
+    this.realtimeBeaconBuilder.bufferingEnded();
+  }
+
+  /**
    * pause transmuxer
    * @memberof Flv
    */
@@ -303,7 +553,16 @@ export default class Flv extends CustEvent {
   destroy () {
     window.clearInterval(this.timer);
     window.clearInterval(this.seekTimer);
+    window.clearInterval(this.checkBufferTimer);
+    if (this.realtimeBeaconTimer) {
+      window.clearInterval(this.realtimeBeaconTimer);
+      // Send last realtime beacon
+      this._sendRealtimeBeacon();
+      this.realtimeBeaconTimer = null;
+    }
     this.video.removeEventListener('seeking', this.throttle);
+    this.video.removeEventListener('waiting', this._onVideoWaiting);
+    this.video.removeEventListener('playing', this._onVideoPlaying);
     if(this.video) {
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
@@ -337,6 +596,21 @@ export default class Flv extends CustEvent {
       this._seek(0);
     } else {
       Log.verbose(this.tag, 'transmuxer & mediaSource not ready');
+    }
+  }
+
+  /**
+   * stop stream load
+   * @memberof Flv
+   */
+  stopLoad () {
+    this.transmuxer && this.transmuxer.pause();
+    this.mediaSource && this.mediaSource.pause();
+    if (this.realtimeBeaconTimer) {
+      // Send the last realtime beacon and clear timer
+      window.clearInterval(this.realtimeBeaconTimer);
+      this._sendRealtimeBeacon();
+      this.realtimeBeaconTimer = null;
     }
   }
 }

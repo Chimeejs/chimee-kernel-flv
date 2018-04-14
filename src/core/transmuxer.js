@@ -1,7 +1,7 @@
 import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper-events';
 import work from 'webworkify-webpack';
-import F2M from 'chimee-flv2fmp4';
+import F2M from '@ks/chimee-flv2fmp4';
 import {ERRORNO} from '$const';
 /**
  * Transmuxer controller
@@ -12,13 +12,12 @@ import {ERRORNO} from '$const';
 export default class Transmuxer extends CustEvent {
 	constructor (mediaSource, config, globalEvent) {
 		super();
-		this.config = {};
+		this.config = config || {};
 		this.tag = 'transmuxer';
     this.loader = null;
     this.CPU = null;
     this.keyframePoint = false;
     this.w = null;
-    Object.assign(this.config, config);
     if(this.config.webWorker) {
       this.w = work(require.resolve('./transmuxer-worker'));
       this.w.addEventListener('message', (e) => {
@@ -54,6 +53,9 @@ export default class Transmuxer extends CustEvent {
     loader.on('heartbeat', (handle)=> {
       this.emit('heartbeat', handle.data);
     });
+    loader.on('performance', (handle)=> {
+      this.emit('performance', handle.data);
+    });
   }
    /**
    * loader data callback
@@ -63,7 +65,8 @@ export default class Transmuxer extends CustEvent {
    */
   arrivalDataCallback (data, byteStart, keyframePoint) {
     if(!this.CPU) {
-      this.CPU = new F2M();
+      this.config.isLive ? this.config._isLive = true : this.config._isLive = false;
+      this.CPU = new F2M(this.config);
       this.CPU.onInitSegment = this.onRemuxerInitSegmentArrival.bind(this);
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
@@ -71,8 +74,7 @@ export default class Transmuxer extends CustEvent {
         this.emit('error', {errno: ERRORNO.CODEC_ERROR, errmsg: handle.data});
       });
     }
-    
-    if(keyframePoint) {
+    if(keyframePoint !== undefined) {
       this.CPU.seek(keyframePoint);
     }
     const consumed = this.CPU.setflv(data);

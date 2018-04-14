@@ -20,12 +20,6 @@ export default class WebSocketLoader extends CustEvent {
 		this._receivedLength = 0;
 	}
 
-	destroy () {
-		if (this._ws) {
-			this.abort();
-		}
-	}
-
 	open (range, keyframePoint) {
 		try {
 			const ws = this._ws = new self.WebSocket(this.src);
@@ -43,13 +37,12 @@ export default class WebSocketLoader extends CustEvent {
 		}
 	}
 
-	abort () {
+	pause () {
 		const ws = this._ws;
 		if (ws && (ws.readyState === 0 || ws.readyState === 1)) {
 			this._requestAbort = true;
 			ws.close();
 		}
-
 		this._ws = null;
 	}
 
@@ -59,6 +52,10 @@ export default class WebSocketLoader extends CustEvent {
 			return;
 		}
 		this.emit('end');
+	}
+
+	onWebSocketOpen() {
+
 	}
 
 	onWebSocketMessage (e) {
@@ -82,7 +79,7 @@ export default class WebSocketLoader extends CustEvent {
 		this.receivedLength += chunk.byteLength;
 
 		if (this.arrivalDataCallback) {
-			this.arrivalDataCallback(chunk, byteStart, this.receivedLength);
+			this.arrivalDataCallback(chunk, byteStart);
 		}
 	}
 

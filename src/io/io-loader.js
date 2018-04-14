@@ -21,7 +21,7 @@ export default class Ioloader extends CustEvent {
 		super();
 		this.loader = null;
 		this.config = {};
-		Object.assign(this.config, config);
+		this.config = config || {};
 		this.bufferSize = 1024 * 1024 * 3; // initial size: 3MB
 		this.cacheBuffer = new ArrayBuffer(this.bufferSize);
 		this.cacheRemain = 0;
@@ -31,12 +31,12 @@ export default class Ioloader extends CustEvent {
 		this.resumeFrom = 0;
 		this.currentRange = {};
 		this.totalReceive = 0;
-		this.seekPonit = 0;
+		this.seekPonit = undefined;
 		this.timer = null;
 		this.heartBeatInterval = null;
 		this.preTotalReceive = 0;
     this.seekLock = false;
-		this.webSocketURLReg = /wss?:\/\/(.+?)\//;
+		this.webSocketURLReg = /wss?:\/\/(.+?)/;
 		this.selectLoader();
 		this.bindEvent();
 	}
@@ -67,8 +67,10 @@ export default class Ioloader extends CustEvent {
 			this.arrivalDataCallback(buffer, this.stashByteStart);
 			this.emit('end');
 		});
-		this.loader.on('error', (handle)=> {
-			this.emit('error', handle.data);
+		['error', 'performance'].forEach(eventName => {
+			this.loader.on(eventName, (handle)=> {
+				this.emit(eventName, handle.data);
+			});
 		});
 	}
 	/**
@@ -77,10 +79,13 @@ export default class Ioloader extends CustEvent {
 	* @param  {number} chunk byte postion
 	*/
 	onLoaderChunkArrival (chunk, byteStart, keyframePoint) {
-		if(this.seekLock && !keyframePoint) {
+		if (typeof this.startReceiveTime === 'undefined') {
+			this.startReceiveTime = Date.now();
+		}
+		if(this.seekLock && keyframePoint === undefined) {
       return;
 		}
-		if(keyframePoint) {
+		if(keyframePoint !== undefined) {
 			this.seekPonit = keyframePoint;
 			this.seekLock = false;
 		}
@@ -96,17 +101,29 @@ export default class Ioloader extends CustEvent {
         const stashArray = new Uint8Array(this.cacheBuffer, 0, this.stashSize);
         stashArray.set(new Uint8Array(chunk), this.cacheRemain);
         this.cacheRemain += chunk.byteLength;
-      } else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
+			} else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
+				if (this.startReceiveTime) {
+					this.emit('performance', {
+						type: 'first-flv-package-duration',
+						value: Date.now() - this.startReceiveTime
+					});
+					this.startReceiveTime = null;
+				}
         let stashArray = new Uint8Array(this.cacheBuffer, 0, this.bufferSize);
         if (this.cacheRemain > 0) {
 					const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
-          let consumed = 0;
-          if(this.seekPonit) {
+					let consumed = 0;
+					const transmuxerStart = Date.now();
+          if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart, this.seekPonit);
-          	this.seekPonit = 0;
+          	this.seekPonit = undefined;
           } else {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart);
-          }
+					}
+					this.emit('performance', {
+						type: 'flv-to-mp4',
+						value: Date.now() - transmuxerStart
+					});
 
           if (consumed < buffer.byteLength) {
             if (consumed > 0) {
@@ -126,13 +143,18 @@ export default class Ioloader extends CustEvent {
           stashArray.set(new Uint8Array(chunk), this.cacheRemain);
           this.cacheRemain += chunk.byteLength;
         } else {
-          let consumed = 0;
-          if(this.seekPonit) {
+					let consumed = 0;
+					const transmuxerStart = Date.now();
+          if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(chunk, byteStart, this.seekPonit);
-          	this.seekPonit = 0;
+          	this.seekPonit = undefined;
           } else {
-          	consumed = this.arrivalDataCallback(chunk, byteStart);
-          }
+						consumed = this.arrivalDataCallback(chunk, byteStart);
+					}
+					this.emit('performance', {
+						type: 'flv-to-mp4',
+						value: Date.now() - transmuxerStart
+					});
           if (consumed < chunk.byteLength) {
             const remain = chunk.byteLength - consumed;
             if (remain > this.bufferSize) {
@@ -152,6 +174,7 @@ export default class Ioloader extends CustEvent {
 	*/
 	initCacheBuffer () {
 		this.cacheRemain = 0;
+		this.totalReceive = 0;
 		this.cacheBuffer = new ArrayBuffer(this.bufferSize);
 	}
 
@@ -227,6 +250,7 @@ export default class Ioloader extends CustEvent {
 	*/
 	destroy () {
 		this.pause();
+		this.initCacheBuffer();
 		window.clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = null;
 	}
