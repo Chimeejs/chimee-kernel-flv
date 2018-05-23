@@ -75,6 +75,8 @@ export default class FetchLoader extends CustEvent {
 			cache: 'default',
 			referrerPolicy: 'no-referrer-when-downgrade'
 		};
+
+		// kwai http建联时间统计
 		const receiveStart = Date.now();
 		fetch(this.src, params).then((res) => {
 			this.emit('performance', {
@@ -86,7 +88,7 @@ export default class FetchLoader extends CustEvent {
 				return this.pump(reader, keyframePoint);
 			}
 		}).catch((e)=>{
-			this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e});
+			this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e.toString()});
 		});
 	}
 
@@ -115,7 +117,7 @@ export default class FetchLoader extends CustEvent {
         		this.arrivalDataCallback(chunk, this.bytesStart, keyframePoint);
         		this.bytesStart += chunk.byteLength;
         	}
-        	return this.pump(reader);
+			setTimeout(() => {this.pump(reader);}, 0);
         }
       }).catch((e) => {
       	this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e.message});

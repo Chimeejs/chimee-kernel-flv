@@ -1,5 +1,6 @@
-import F2M from 'chimee-flv2fmp4';
+import F2M from '../flv2fmp4';
 import IoLoader from '../io/io-loader';
+import { PLAYER_EVENTS } from '..//player-events';
 
 export default function (ctx) {
   let CPU = null;
@@ -12,6 +13,7 @@ export default function (ctx) {
       break;
       case 'loadSource':
         loader = new IoLoader(config);
+        loaderBindEvent();
         loader.arrivalDataCallback = arrivalDataCallbackWorker;
         loader.open();
       break;
@@ -31,11 +33,12 @@ export default function (ctx) {
   });
 
   function init () {
-    CPU = new F2M();
+    CPU = new F2M(config);
     CPU.onInitSegment = onRemuxerInitSegmentArrival;
     CPU.onMediaSegment = onRemuxerMediaSegmentArrival;
     CPU.onError = onCPUError;
     CPU.onMediaInfo = onMediaInfo;
+    CPU.onCdnDropFrame = onCdnDropFrame;
     CPU.on('error', (handle)=> {
       self.postMessage({cmd: 'error', source: handle.data});
     });
@@ -72,17 +75,27 @@ export default function (ctx) {
     self.postMessage({cmd: 'mediainfo', source: mediainfo});
   }
 
+  /**
+   * cdn丢帧回调
+   */
+  function onCdnDropFrame (len) {
+    self.postMessage({cmd: 'cdnDropFrame', source: len});
+  }
+
   function seek (keyframe) {
-    loader.pause();
-    loader = new IoLoader(config);
-    loader.arrivalDataCallback = arrivalDataCallbackWorker;
     loader.seek(keyframe.keyframePoint, false, keyframe.keyframetime);
   }
 
   function destroy () {
-    loader.destroy();
-    loader = null;
-    CPU = null;
+    if(loader) {
+      loader.destroy();
+      loaderUnbindEvent(loader);
+      loader = null;
+    }
+    if(CPU) {
+      CPU.off('error');
+      CPU = null;
+    }
   }
 
   function arrivalDataCallbackWorker (data, byteStart, keyframePoint) {
@@ -92,7 +105,39 @@ export default function (ctx) {
     if(keyframePoint) {
       CPU.seek(keyframePoint);
     }
+    self.postMessage({cmd: 'player-event', source: {type: PLAYER_EVENTS.MEDIA_DEMUX_FLV, ts: Date.now()}});
     const consumed = CPU.setflv(data);
     return consumed;
+  }
+
+  /**
+   * 给loader绑定事件
+   */
+  function loaderBindEvent () {
+    if(loader) {
+      loader.on('end', ()=> {
+        self.postMessage({cmd: 'end'});
+      });
+      loader.on('error', (handle)=> {
+        self.postMessage({cmd: 'error', source: handle.data});
+      });
+      loader.on('heartbeat', (handle)=> {
+        self.postMessage({cmd: 'heartbeat', source: handle.data});
+      });
+      loader.on('player-event', (handle)=> {
+        self.postMessage({cmd: 'player-event', source: handle.data});
+      });
+    }
+  }
+  /**
+   * 解除事件绑定
+   */
+  function loaderUnbindEvent (target) {
+    if(target) {
+      target.off('end');
+      target.off('error');
+      target.off('heartbeat');
+      target.off('player-event');
+    }
   }
 }

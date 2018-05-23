@@ -2,6 +2,8 @@ import MseContriller from './core/mse-controller';
 import Transmuxer from './core/transmuxer';
 import defaultConfig from './config';
 import {CustEvent, throttle, deepAssign, Log, UAParser, isNumber} from 'chimee-helper';
+import PlayerLogger from './player-logger';
+import { PLAYER_EVENTS } from './player-events';
 
 class FlvRealtimeBeaconBuilder {
   constructor(src) {
@@ -35,6 +37,9 @@ class FlvRealtimeBeaconBuilder {
     this.videoBufferedMillis = 0;
     this.demuxedDurationSec = 0;
     this.excessiveDataDroppedSec = 0;
+    // block时缓冲区仍然有数据的情况
+    this.blockCountWithBuffer = 0;
+    this.bufferDuringBlockSum = 0;
   }
 
   videoBufferedUpdated(buffered) {
@@ -67,9 +72,16 @@ class FlvRealtimeBeaconBuilder {
     this.currentPlaybackSpeedTimestamp = new Date().getTime();
   }
 
-  bufferingStarted() {
+  bufferingStarted (bufferedLength) {
+    const BUFFERED_THRESHOLD = 0.3;
     ++this.bufferingCount;
     this.bufferingStartTimestampMillis = new Date().getTime();
+
+    // 卡时缓冲区>300ms数量
+    if(bufferedLength > BUFFERED_THRESHOLD) {
+      this.bufferDuringBlockSum += bufferedLength;
+      this.blockCountWithBuffer++;
+    }
   }
 
   bufferingEnded() {
@@ -110,7 +122,7 @@ class FlvRealtimeBeaconBuilder {
       'play_start_time': this.playStartTimestampMillis,
       'tick_start': this.statTimestampMillis,
       'tick_duration': now - this.statTimestampMillis,
-      'block_count': this.bufferingCount + ongoingBufferingCount,
+      'block_count': this.bufferingCount,
       'buffer_time': this.bufferingDurationMillis + ongoingBufferingDuration,
       'kbytes_received': this.downloadedBytes >> 10,
       'played_video_duration': now - this.statTimestampMillis - (this.bufferingDurationMillis + ongoingBufferingDuration),
@@ -118,7 +130,9 @@ class FlvRealtimeBeaconBuilder {
       'dropped_packet_duration': Math.round(this.excessiveDataDroppedSec * 1000),
       'a_buf_len': this.audioBufferedMillis,
       'v_buf_len': this.videoBufferedMillis,
-      'speed_chg_metric': this.playbackSpeedStat
+      'speed_chg_metric': this.playbackSpeedStat,
+      'block_count_with_buffer': this.blockCountWithBuffer,
+      'buffer_during_block': this.blockCountWithBuffer > 0 ? Math.round(this.bufferDuringBlockSum / this.blockCountWithBuffer * 1000) : 0
     };
     this._resetForNewInterval();
     return ret;
@@ -169,7 +183,17 @@ export default class Flv extends CustEvent {
     this.throttle = null;
     this.bindEvents();
     this.attachMedia();
-
+    this.initLogger();
+    console.log('kernel', Flv.version);
+  }
+  /**
+   * 初始化事件处理器
+   */
+  initLogger () {
+    this.logger = new PlayerLogger();
+    this.logger.on('performance', (handle)=> {
+      this.emit('performance', handle.data);
+    });
   }
   /**
    * internal set currentTime
@@ -202,23 +226,28 @@ export default class Flv extends CustEvent {
    */
   bindEvents () {
     if(this.video) {
-      this.video.addEventListener('canplay', () => {
-        if(this.config.isLive) {
-          this.video.play();
-        }
-        if(this.config.lockInternalProperty) {
-          this.internalPropertyHandle();
-        }
-      });
+      
+      this._onVideoCanplay = this._onVideoCanplay.bind(this);
       this._onVideoWaiting = this._onVideoWaiting.bind(this);
       this._onVideoPlaying = this._onVideoPlaying.bind(this);
+      this._onVideoTimeupdate = this._onVideoTimeupdate.bind(this);
+      this.video.addEventListener('canplay', this._onVideoCanplay);
       this.video.addEventListener('waiting', this._onVideoWaiting);
       this.video.addEventListener('playing', this._onVideoPlaying);
+      this.video.addEventListener('timeupdate', this._onVideoTimeupdate);
       this._lastBufferd = null;
       this.checkBufferTimer = setInterval(this._checkBuffer.bind(this), 200);
-    }
   }
-
+}
+  /**
+   *  移除mediasource事件
+   */
+  unbindMediaSourceEvent (mediaSource) {
+    mediaSource.off('error');
+    mediaSource.off('bufferFull');
+    mediaSource.off('updateend');
+    mediaSource.off('player-event');
+  }
   /**
    * new mediaSource
    * @memberof Flv
@@ -238,6 +267,9 @@ export default class Flv extends CustEvent {
     this.mediaSource.on('updateend', ()=>{
       this.onmseUpdateEnd();
     });
+    this.mediaSource.on('player-event', (handle)=> {
+      this.logger.record(handle.data);
+    });
   }
 
   /**
@@ -254,6 +286,20 @@ export default class Flv extends CustEvent {
     this.transmuxer = new Transmuxer(this.mediaSource, this.config, this.globalEvent);
     this.transmuxerEvent(this.transmuxer);
     this.transmuxer.loadSource();
+  }
+  /**
+   * 移除transmuxer事件
+   * @param {} transmuxer 
+   */
+  unbindTransmuxerEvent (transmuxer) {
+    transmuxer.off('mediaSegment');
+    transmuxer.off('mediaSegmentInit');
+    transmuxer.off('error');
+    transmuxer.off('end');
+    transmuxer.off('heartbeat');
+    transmuxer.off('performance');
+    transmuxer.off('mediaInfo');
+    transmuxer.off('player-event');
   }
 
   transmuxerEvent (transmuxer) {
@@ -281,7 +327,21 @@ export default class Flv extends CustEvent {
       this.realtimeBeaconBuilder.updateDownloadedBytes(handle.data.totalReceive);
     });
     transmuxer.on('performance', (handle)=> {
-      this.emit('performance', handle.data);
+      const {type, value} = handle.data;
+      if (type === 'first-flv-to-mp4') {
+        this.firstFlvToMp4 = this.firstFlvToMp4 || 0;
+        this.firstFlvToMp4 += value;
+        return;
+      }
+      if (type === 'receive-first-package-duration') {
+        this.receiveFirstPAckageDuration = this.receiveFirstPAckageDuration || 0;
+        this.receiveFirstPAckageDuration += value;
+        return;
+      }
+      if (type === 'first-flv-package-duration') {
+        this.firstFlvPackageDuration = this.firstFlvPackageDuration || 0;
+        this.firstFlvPackageDuration += value;
+      }
     });
 
     transmuxer.on('mediaInfo', (mediaInfo)=> {
@@ -295,6 +355,9 @@ export default class Flv extends CustEvent {
         // kwai 多次media上报也扔出去（应对metadata切换）
         this.emit('mediaInfo', mediaInfo.data);
       }
+    });
+    transmuxer.on('player-event', (handle)=> {
+      this.logger.record(handle.data);
     });
   }
 
@@ -473,9 +536,9 @@ export default class Flv extends CustEvent {
             changePlaybackRate(1.0);
           } else if (buffered > 8 + EPS) {
             // drop excessive data
-            Log.verbose('Dropping excessive data, buffer: ' + buffered);
-            this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
-            this.video.currentTime += buffered - 5;
+            // Log.verbose('Dropping excessive data, buffer: ' + buffered);
+            // this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
+            // this.video.currentTime += buffered - 5;
           }
         } else {
           // Regular speed case. If buffer drops to < 3s or grows to > 6s, adjust speed accordingly
@@ -484,9 +547,9 @@ export default class Flv extends CustEvent {
             // changePlaybackRate(0.75);
           } else if (buffered > 8 + EPS) {
             // drop excessive data
-            Log.verbose('Dropping excessive data, buffer: ' + buffered);
-            this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
-            this.video.currentTime += buffered - 5;
+            // Log.verbose('Dropping excessive data, buffer: ' + buffered);
+            // this.realtimeBeaconBuilder.excessiveDataDropped(buffered - 5);
+            // this.video.currentTime += buffered - 5;
           } else if (buffered > 6 + EPS) {
             // changePlaybackRate(1.25);
           }
@@ -515,19 +578,57 @@ export default class Flv extends CustEvent {
     let beacon = this.realtimeBeaconBuilder.buildAndStartNewInterval();
     this.emit('realtimeBeacon', beacon);
   }
+  /**
+   * ‘canplay’ event listener
+   */
+  _onVideoCanplay () {
+    this.logger.record({type: PLAYER_EVENTS.CANPLAY, ts: Date.now()});
+    if(this.config.isLive) {
+      this.video.play();
+    }
+    if(this.config.lockInternalProperty) {
+      this.internalPropertyHandle();
+    }
+  }
 
   /**
    * 'waiting' event listener
    */
-  _onVideoWaiting() {
-    this.realtimeBeaconBuilder.bufferingStarted();
+  _onVideoWaiting () {
+    if(this.video && !this.video.seeking) {
+      let bufferedLength = 0;
+      let buffered = this.video.buffered;
+      if(buffered.length > 0) {
+        bufferedLength = this.video.buffered.end(buffered.length - 1) - this.video.currentTime;
+      }
+      this.realtimeBeaconBuilder.bufferingStarted(bufferedLength);
+    }
   }
 
   /**
    * 'playing' event listener
    */
   _onVideoPlaying() {
+    let bufferedLength = 0;
+    let buffered = this.video.buffered;
+    // console.log(buffered.start(0), buffered.end(0), this.video.currentTime);
+    for (var i = 0; i < buffered.length; i++) {
+      if(buffered.start(i) - 0.1 <= this.video.currentTime && buffered.end(i) >= this.video.currentTime) {
+        bufferedLength = buffered.end(i) - this.video.currentTime;
+        break;
+      }
+    }
+    this.logger.record({type: PLAYER_EVENTS.PLAYING, buffered: bufferedLength, ts: Date.now()});
     this.realtimeBeaconBuilder.bufferingEnded();
+  }
+
+  /**
+   * 'timeupdate' event listener
+   */
+  _onVideoTimeupdate () {
+    console.log('time update');
+    this.video.removeEventListener('timeupdate', this._onVideoTimeupdate);
+    this.logger.record({ type: PLAYER_EVENTS.TIMEUPDATE, ts: Date.now() });
   }
 
   /**
@@ -560,23 +661,29 @@ export default class Flv extends CustEvent {
       this._sendRealtimeBeacon();
       this.realtimeBeaconTimer = null;
     }
+    this.video.removeEventListener('canplay', this._onVideoCanplay);
     this.video.removeEventListener('seeking', this.throttle);
     this.video.removeEventListener('waiting', this._onVideoWaiting);
     this.video.removeEventListener('playing', this._onVideoPlaying);
+    this.video.removeEventListener('timeupdate', this._onVideoTimeupdate);
     if(this.video) {
       URL.revokeObjectURL(this.video.src);
       this.video.src = '';
       this.video.removeAttribute('src');
       if(this.transmuxer) {
+        this.unbindTransmuxerEvent(this.transmuxer);
         this.transmuxer.pause();
         this.transmuxer.destroy();
         this.transmuxer = null;
       }
       if(this.mediaSource) {
+        this.unbindMediaSourceEvent(this.mediaSource);
         this.mediaSource.destroy();
         this.mediaSource = null;
       }
     }
+    this.logger.off('performance');
+    this.logger = null;
   }
 
   seek (seconds) {

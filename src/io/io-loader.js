@@ -9,6 +9,7 @@ import RangeLoader from './xhr-range';
 import WebsocketLoader from './websocket';
 import MozChunkLoader from './xhr-moz-chunk';
 import {CustEvent} from 'chimee-helper-events';
+import {PLAYER_EVENTS} from '../player-events';
 
 /**
  * Ioloader 处理io的调用器 缓存多余数据
@@ -74,6 +75,14 @@ export default class Ioloader extends CustEvent {
 		});
 	}
 	/**
+	 * 解除事件绑定
+	 */
+	unbindEvent () {
+		this.loader.off('end');
+		this.loader.off('error');
+		this.loader.off('performance');
+	}
+	/**
 	* 数据接收器
 	* @param  {arrayBuffer} chunk data
 	* @param  {number} chunk byte postion
@@ -90,6 +99,7 @@ export default class Ioloader extends CustEvent {
 			this.seekLock = false;
 		}
 		if(this.arrivalDataCallback) {
+			this.emit('player-event', {type: PLAYER_EVENTS.LOADER_CHUNK_ARRIVAL, byteLength: chunk.byteLength, ts: Date.now()});
 			this.totalReceive += chunk.byteLength;
 
 			if (this.cacheRemain === 0 && this.stashByteStart === 0) {
@@ -107,7 +117,7 @@ export default class Ioloader extends CustEvent {
 						type: 'first-flv-package-duration',
 						value: Date.now() - this.startReceiveTime
 					});
-					this.startReceiveTime = null;
+					this.startReceiveTime = undefined;
 				}
         let stashArray = new Uint8Array(this.cacheBuffer, 0, this.bufferSize);
         if (this.cacheRemain > 0) {
@@ -121,7 +131,7 @@ export default class Ioloader extends CustEvent {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart);
 					}
 					this.emit('performance', {
-						type: 'flv-to-mp4',
+						type: 'first-flv-to-mp4',
 						value: Date.now() - transmuxerStart
 					});
 
@@ -152,7 +162,7 @@ export default class Ioloader extends CustEvent {
 						consumed = this.arrivalDataCallback(chunk, byteStart);
 					}
 					this.emit('performance', {
-						type: 'flv-to-mp4',
+						type: 'first-flv-to-mp4',
 						value: Date.now() - transmuxerStart
 					});
           if (consumed < chunk.byteLength) {
@@ -205,6 +215,7 @@ export default class Ioloader extends CustEvent {
 	* 打开连接
 	*/
 	open (startBytes, keyframePoint) {
+		this.emit('player-event', {type: PLAYER_EVENTS.LOADER_OPEN, ts: Date.now()});
 		this.loader.open({from: startBytes || 0, to: -1}, keyframePoint);
 		this.heartbeat();
 	}
@@ -213,7 +224,7 @@ export default class Ioloader extends CustEvent {
 	* 心跳
 	*/
 	heartbeat () {
-		window.clearInterval(this.heartBeatInterval);
+		clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = setInterval(()=>{
 			this.emit('heartbeat', {
 				speed: this.totalReceive - this.preTotalReceive,
@@ -253,5 +264,6 @@ export default class Ioloader extends CustEvent {
 		this.initCacheBuffer();
 		window.clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = null;
+		this.unbindEvent();
 	}
 }
