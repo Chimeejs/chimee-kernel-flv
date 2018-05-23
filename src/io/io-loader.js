@@ -9,6 +9,7 @@ import RangeLoader from './xhr-range';
 import WebsocketLoader from './websocket';
 import MozChunkLoader from './xhr-moz-chunk';
 import {CustEvent} from 'chimee-helper-events';
+import {PLAYER_EVENTS} from '../player-events';
 
 /**
  * Ioloader 处理io的调用器 缓存多余数据
@@ -67,9 +68,19 @@ export default class Ioloader extends CustEvent {
 			this.arrivalDataCallback(buffer, this.stashByteStart);
 			this.emit('end');
 		});
-		this.loader.on('error', (handle)=> {
-			this.emit('error', handle.data);
+		['error', 'performance'].forEach(eventName => {
+			this.loader.on(eventName, (handle)=> {
+				this.emit(eventName, handle.data);
+			});
 		});
+	}
+	/**
+	 * 解除事件绑定
+	 */
+	unbindEvent () {
+		this.loader.off('end');
+		this.loader.off('error');
+		this.loader.off('performance');
 	}
 	/**
 	* 数据接收器
@@ -77,6 +88,9 @@ export default class Ioloader extends CustEvent {
 	* @param  {number} chunk byte postion
 	*/
 	onLoaderChunkArrival (chunk, byteStart, keyframePoint) {
+		if (typeof this.startReceiveTime === 'undefined') {
+			this.startReceiveTime = Date.now();
+		}
 		if(this.seekLock && keyframePoint === undefined) {
       return;
 		}
@@ -85,6 +99,7 @@ export default class Ioloader extends CustEvent {
 			this.seekLock = false;
 		}
 		if(this.arrivalDataCallback) {
+			this.emit('player-event', {type: PLAYER_EVENTS.LOADER_CHUNK_ARRIVAL, byteLength: chunk.byteLength, ts: Date.now()});
 			this.totalReceive += chunk.byteLength;
 
 			if (this.cacheRemain === 0 && this.stashByteStart === 0) {
@@ -96,17 +111,29 @@ export default class Ioloader extends CustEvent {
         const stashArray = new Uint8Array(this.cacheBuffer, 0, this.stashSize);
         stashArray.set(new Uint8Array(chunk), this.cacheRemain);
         this.cacheRemain += chunk.byteLength;
-      } else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
+			} else { // 大于cache大小的 则把数据放入播放器 溢出数据进行缓存
+				if (this.startReceiveTime) {
+					this.emit('performance', {
+						type: 'first-flv-package-duration',
+						value: Date.now() - this.startReceiveTime
+					});
+					this.startReceiveTime = undefined;
+				}
         let stashArray = new Uint8Array(this.cacheBuffer, 0, this.bufferSize);
         if (this.cacheRemain > 0) {
 					const buffer = this.cacheBuffer.slice(0, this.cacheRemain);
-          let consumed = 0;
+					let consumed = 0;
+					const transmuxerStart = Date.now();
           if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart, this.seekPonit);
           	this.seekPonit = undefined;
           } else {
           	consumed = this.arrivalDataCallback(buffer, this.stashByteStart);
-          }
+					}
+					this.emit('performance', {
+						type: 'first-flv-to-mp4',
+						value: Date.now() - transmuxerStart
+					});
 
           if (consumed < buffer.byteLength) {
             if (consumed > 0) {
@@ -126,13 +153,18 @@ export default class Ioloader extends CustEvent {
           stashArray.set(new Uint8Array(chunk), this.cacheRemain);
           this.cacheRemain += chunk.byteLength;
         } else {
-          let consumed = 0;
+					let consumed = 0;
+					const transmuxerStart = Date.now();
           if(this.seekPonit !== undefined) {
           	consumed = this.arrivalDataCallback(chunk, byteStart, this.seekPonit);
           	this.seekPonit = undefined;
           } else {
-          	consumed = this.arrivalDataCallback(chunk, byteStart);
-          }
+						consumed = this.arrivalDataCallback(chunk, byteStart);
+					}
+					this.emit('performance', {
+						type: 'first-flv-to-mp4',
+						value: Date.now() - transmuxerStart
+					});
           if (consumed < chunk.byteLength) {
             const remain = chunk.byteLength - consumed;
             if (remain > this.bufferSize) {
@@ -183,6 +215,7 @@ export default class Ioloader extends CustEvent {
 	* 打开连接
 	*/
 	open (startBytes, keyframePoint) {
+		this.emit('player-event', {type: PLAYER_EVENTS.LOADER_OPEN, ts: Date.now()});
 		this.loader.open({from: startBytes || 0, to: -1}, keyframePoint);
 		this.heartbeat();
 	}
@@ -191,7 +224,7 @@ export default class Ioloader extends CustEvent {
 	* 心跳
 	*/
 	heartbeat () {
-		window.clearInterval(this.heartBeatInterval);
+		clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = setInterval(()=>{
 			this.emit('heartbeat', {
 				speed: this.totalReceive - this.preTotalReceive,
@@ -231,5 +264,6 @@ export default class Ioloader extends CustEvent {
 		this.initCacheBuffer();
 		window.clearInterval(this.heartBeatInterval);
 		this.heartBeatInterval = null;
+		this.unbindEvent();
 	}
 }

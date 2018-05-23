@@ -1,6 +1,7 @@
 import {CustEvent} from 'chimee-helper-events';
 import Log from 'chimee-helper-log';
 import {ERRORNO} from '$const';
+import {PLAYER_EVENTS} from '../player-events';
 
 export default class MSEController extends CustEvent {
 
@@ -53,6 +54,7 @@ export default class MSEController extends CustEvent {
    * @param {Object} mediaInfo
    */
   init (mediaInfo) {
+    this.emit('player-event', {type: PLAYER_EVENTS.MEDIA_INFO, ts: Date.now()});
     if (this.mediaSource) {
       Log.Error(this.tag, 'MediaSource has been attached to an HTMLMediaElement!');
       this.emit('error', {errno: ERRORNO.MEDIASOURCE_ERROR, errmsg: 'MediaSource has been attached to an HTMLMediaElement!'});
@@ -150,6 +152,7 @@ export default class MSEController extends CustEvent {
     this.on('mediaSegment', (handler)=> {
       const data = handler.data;
       const type = data.type;
+      this.emit('player-event', {type: PLAYER_EVENTS.MEDIA_SEGMENT, byteLength: data.data.byteLength, ts: Date.now()});
       if(this.needCleanupSourceBuffer(type)) {
         this.doCleanupSourceBuffer(type);
       }
@@ -165,6 +168,7 @@ export default class MSEController extends CustEvent {
     });
 
     this.on('mediaSegmentInit', (handler)=> {
+      this.emit('player-event', {type: PLAYER_EVENTS.MEDIA_SEGMENT_INIT, ts: Date.now()});
       const data = handler.data;
       const type = data.type;
       // if (!this.sourceBuffer[type] || (this.sourceBuffer[type].updating || this.queue[type].length > 0)) {
@@ -246,14 +250,24 @@ export default class MSEController extends CustEvent {
     try {
       this.sourceBuffer[type].appendBuffer(data.buffer);
     } catch (e) {
-      this.queue[type].unshift(data);
-      if(e.code === 22) {
-        // chrome can cache about 350M
-        Log.verbose(this.tag, 'MediaSource bufferFull');
-        this.emit('bufferFull');
-      } else {
-        // this.emit('error', {errno: ERRORNO.APPENDBUFFER_ERROR, errmsg: e});
+      const removeEnd = this.video.currentTime - 3;
+      console.log('removeEnd', removeEnd);
+      if(removeEnd > 0) {
+        for(const t in this.sourceBuffer) {
+          this.sourceBuffer[t].remove(0, removeEnd);
+        }
       }
+      this.queue[type].unshift(data);
+      // 清理缓存
+      setTimeout(this.doUpdate.bind(this), 100);
+      console.error(e);
+      // if(e.code === 22) {
+      //   // chrome can cache about 350M
+      //   Log.verbose(this.tag, 'MediaSource bufferFull');
+      //   this.emit('bufferFull');
+      // } else {
+      //   // this.emit('error', {errno: ERRORNO.APPENDBUFFER_ERROR, errmsg: e});
+      // }
     }
   }
 
@@ -281,7 +295,7 @@ export default class MSEController extends CustEvent {
    * @param {Object} evnet
    */
   onSourceBufferError (e) {
-    this.emit('error', {errnono: ERRORNO.SOURCEBUFFER_ERROR, errmsg: e});
+    this.emit('error', {errnono: ERRORNO.SOURCEBUFFER_ERROR, errmsg: e.message});
     Log.error(this.tag, `SourceBuffer Error: ${e}`);
   }
 
@@ -385,5 +399,7 @@ export default class MSEController extends CustEvent {
       ms.removeEventListener('sourceclose', this.e.onSourceClose);
       this.mediaSource = null;
     }
+    this.off('mediaSegmentInit');
+    this.off('mediaSegment');
   }
 }

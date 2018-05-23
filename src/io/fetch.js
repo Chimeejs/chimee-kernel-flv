@@ -64,24 +64,31 @@ export default class FetchLoader extends CustEvent {
 				}
 			}
 		}
-    if(keyframePoint) {
-    	this.bytesStart = 0;
-    }
+		if (keyframePoint) {
+			this.bytesStart = 0;
+		}
 		this.bytesStart = range.from;
 		const params = {
-      method: 'GET',
-      headers: reqHeaders,
-      mode: 'cors',
-      cache: 'default',
-      referrerPolicy: 'no-referrer-when-downgrade'
-    };
-		fetch(this.src, params).then((res)=>{
-			if(res.ok) {
+			method: 'GET',
+			headers: reqHeaders,
+			mode: 'cors',
+			cache: 'default',
+			referrerPolicy: 'no-referrer-when-downgrade'
+		};
+
+		// kwai http建联时间统计
+		const receiveStart = Date.now();
+		fetch(this.src, params).then((res) => {
+			this.emit('performance', {
+				type: 'receive-first-package-duration',
+				value: Date.now() - receiveStart
+			});
+			if (res.ok) {
 				const reader = res.body.getReader();
 				return this.pump(reader, keyframePoint);
 			}
 		}).catch((e)=>{
-			this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e});
+			this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e.toString()});
 		});
 	}
 
@@ -110,7 +117,7 @@ export default class FetchLoader extends CustEvent {
         		this.arrivalDataCallback(chunk, this.bytesStart, keyframePoint);
         		this.bytesStart += chunk.byteLength;
         	}
-        	return this.pump(reader);
+			setTimeout(() => {this.pump(reader);}, 0);
         }
       }).catch((e) => {
       	this.emit('error', {errno: ERRORNO.NET_ERROR, errmsg: e.message});

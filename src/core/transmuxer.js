@@ -1,8 +1,9 @@
 import IoLoader from '../io/io-loader';
 import {CustEvent} from 'chimee-helper-events';
 import work from 'webworkify-webpack';
-import F2M from 'chimee-flv2fmp4';
+import F2M from '../flv2fmp4';
 import {ERRORNO} from '$const';
+import {PLAYER_EVENTS} from '../player-events';
 /**
  * Transmuxer controller
  * @class Transmuxer
@@ -19,14 +20,16 @@ export default class Transmuxer extends CustEvent {
     this.keyframePoint = false;
     this.w = null;
     if(this.config.webWorker) {
+      this.onWorkMessage = this.onWorkMessage.bind(this);
       this.w = work(require.resolve('./transmuxer-worker'));
-      this.w.addEventListener('message', (e) => {
-        this.parseCallback.call(this, e.data);
-      });
-      this.w.postMessage({cmd: 'init', data: config});
+      this.w.addEventListener('message', this.onWorkMessage);
+      this.w.postMessage(JSON.parse(JSON.stringify({cmd: 'init', data: config})));
     }
     this.lock = 0;
-	}
+  }
+  onWorkMessage (e) {
+    this.parseCallback.call(this, e.data);
+  }
    /**
    * instance ioloader
    */
@@ -36,8 +39,8 @@ export default class Transmuxer extends CustEvent {
     } else {
       this.loader = new IoLoader(this.config);
       this.loader.arrivalDataCallback = this.arrivalDataCallback.bind(this);
-      this.loader.open();
       this.loaderBindEvent(this.loader);
+      this.loader.open();
     }
   }
   /**
@@ -53,6 +56,18 @@ export default class Transmuxer extends CustEvent {
     loader.on('heartbeat', (handle)=> {
       this.emit('heartbeat', handle.data);
     });
+    this.loader.on('player-event', (handler)=> {
+      this.emit('player-event', handler.data);
+    });
+  }
+  /**
+   * 解除事件绑定
+   */
+  loaderUnbindEvent (loader) {
+    loader.off('end');
+    loader.off('error');
+    loader.off('heartbeat');
+    loader.off('player-event');
   }
    /**
    * loader data callback
@@ -62,11 +77,11 @@ export default class Transmuxer extends CustEvent {
    */
   arrivalDataCallback (data, byteStart, keyframePoint) {
     if(!this.CPU) {
-      this.config.isLive ? this.config._isLive = true : this.config._isLive = false;
       this.CPU = new F2M(this.config);
       this.CPU.onInitSegment = this.onRemuxerInitSegmentArrival.bind(this);
       this.CPU.onMediaSegment = this.onRemuxerMediaSegmentArrival.bind(this);
       this.CPU.onMediaInfo = this.onMediaInfo.bind(this);
+      this.CPU.onCdnDropFrame = this.onCdnDropFrame.bind(this);
       this.CPU.on('error', (handle)=> {
         this.emit('error', {errno: ERRORNO.CODEC_ERROR, errmsg: handle.data});
       });
@@ -74,6 +89,7 @@ export default class Transmuxer extends CustEvent {
     if(keyframePoint !== undefined) {
       this.CPU.seek(keyframePoint);
     }
+    this.emit('player-event', {type: PLAYER_EVENTS.MEDIA_DEMUX_FLV, byteLength: data.byteLength, ts: Date.now()});
     const consumed = this.CPU.setflv(data);
     return consumed;
   }
@@ -94,8 +110,20 @@ export default class Transmuxer extends CustEvent {
       this.mediaInfo = data.source;
       this.emit('mediaInfo', data.source);
       break;
+      case 'end':
+      this.emit('end');
+      break;
       case 'error':
       this.emit('error', data.source);
+      break;
+      case 'player-event':
+      this.emit('player-event', data.source);
+      break;
+      case 'heartbeat':
+      this.emit('heartbeat', data.source);
+      break;
+      case 'cdnDropFrame':
+      this.emit('cdnDropFrame', { dropAudio: data.source});
       break;
     }
   }
@@ -107,6 +135,12 @@ export default class Transmuxer extends CustEvent {
   onMediaInfo (mediaInfo) {
     this.mediaInfo = mediaInfo;
     this.emit('mediaInfo', mediaInfo);
+  }
+  /**
+   * cdn丢帧回调
+   */
+  onCdnDropFrame (len) {
+    this.emit('cdnDropFrame', { dropAudio: len });
   }
 
   /**
@@ -191,10 +225,18 @@ export default class Transmuxer extends CustEvent {
   destroy () {
     if(this.config.webWorker) {
       this.w.postMessage({cmd: 'destroy'});
+      this.w.removeEventListener('message', this.onWorkMessage);
+      this.w.terminate();
     } else {
-      this.loader.destroy();
-      this.loader = null;
-      this.CPU = null;
+      if(this.loader) {
+        this.loaderUnbindEvent(this.loader);
+        this.loader.destroy();
+        this.loader = null;
+      }
+      if(this.CPU) {
+        this.CPU.off('error');
+        this.CPU = null;
+      }
     }
   }
 
