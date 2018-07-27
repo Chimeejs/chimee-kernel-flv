@@ -114,7 +114,7 @@ export default class RangeLoader extends CustEvent {
   onReadyStateChange (e) {
     const xhr = this.xhr;
     if (xhr.readyState === 2) {
-      if ((xhr.status < 200 && xhr.status > 299)) {
+      if ((xhr.status < 200 || xhr.status > 299)) {
         const info = {
           from: this.range.from,
           to: this.range.to,
