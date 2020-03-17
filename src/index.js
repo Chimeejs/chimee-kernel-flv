@@ -410,6 +410,8 @@ export default class Flv extends CustEvent {
    * @memberof Flv
    */
   _seek (seconds) {
+    if(!this.transmuxer) return
+    
     this.currentTimeLock = true;
     let currentTime = isNumber(seconds) && !isNaN(seconds) ? seconds : this.video.currentTime;
     if(this.requestSetTime) {
